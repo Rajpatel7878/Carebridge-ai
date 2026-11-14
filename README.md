@@ -1,31 +1,52 @@
 # CareBridge AI 🏥
 
-### Healthcare, Connected. From Early Screening to Timely Care.
+### From Early Screening to Timely Care — One Intelligent Platform.
 
-An AI-powered Population Health Management Platform designed to bridge the gap between healthcare screening and treatment.
+CareBridge AI is a population-health MVP for closing the screening-to-care loop. It connects fictional patients, clinicians, and healthcare administrators through report review, explainable prioritization, referrals, appointments, and follow-up workflows.
 
 **Built by Team ALPHA | Future Health Challenge**
 
-## Core Features
-- 🤖 AI-powered medical report analysis
-- 📊 Population health analytics dashboard
-- ❤️ Explainable patient risk prioritization
-- 🩺 Patient and doctor dashboards
-- 🔄 Smart referral management
-- 📅 Appointment and follow-up tracking
-- 🔔 Automated in-app health reminders
-- 🌐 English and Hindi support
-- 🔐 Role-based authentication and access control
+## Repository status
 
-## Tech Stack
-- Frontend: React, TypeScript, Vite, Tailwind CSS
-- Backend: Python, FastAPI
-- Database: PostgreSQL
-- AI: Google Gemini API
-- Charts: Recharts
-- Authentication: JWT
+The active implementation is being developed on `feature/carebridge-mvp`; `main` remains protected. The repository currently contains the foundation for the React/Vite frontend and FastAPI/SQLAlchemy backend. Feature work is being committed incrementally.
 
-## Vision
-To make healthcare more connected, proactive, accessible, and patient-centric by ensuring that no patient is left behind between screening and care.
+## Planned MVP capabilities
 
-*Note: CareBridge AI is a hackathon MVP. Demo records are fictional, and AI-generated information is not a medical diagnosis.*
+- AI-assisted medical report analysis with a clearly labeled mock fallback
+- Explainable patient-risk prioritization
+- Patient, doctor, and administrator workspaces
+- Referrals, appointments, follow-ups, and in-app notifications
+- Population-health analytics from database records
+- English and Hindi patient-facing interface
+- JWT authentication and role-based permissions
+- PostgreSQL deployment with SQLite development fallback
+
+## Development
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+pip install -r requirements.txt
+PYTHONPATH=. python -m app.database.init_db
+uvicorn app.main:app --reload --port 8000
+```
+
+API health: http://localhost:8000/api/health  
+Swagger: http://localhost:8000/docs
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend: http://localhost:5173
+
+## Safety and demo data
+
+Use fictional demonstration records only. AI output is assistive, must disclose uncertainty, and is not a diagnosis or a prescription. Clinical decisions must be made by qualified healthcare professionals. No claim of regulatory compliance is made by this hackathon MVP.
