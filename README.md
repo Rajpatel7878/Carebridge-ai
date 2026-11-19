@@ -1,11 +1,12 @@
 # CareBridge AI
 
-> **"From Early Screening to Timely Care — One Intelligent Platform."**
+> **"Connecting Every Patient to the Care They Need."**  
+> *From health screening to timely care — one intelligent healthcare connection.*
 
 **Team:** ALPHA  
 **Competition:** Future Health Challenge  
 **Category:** Population Health  
-**Current Status:** Phase 3 — Authentication & Role-Based Access Control (Completed)
+**Current Status:** Phase 4 — Landing Page & Public Experience (Completed)
 
 ---
 
@@ -85,21 +86,23 @@ carebridge-ai/
 │   │   ├── components/
 │   │   │   ├── auth/          # ProtectedRoute, RoleGuard, GuestOnlyRoute
 │   │   │   ├── charts/        # Recharts clinical & population charts
-│   │   │   ├── common/        # Design-system primitives
+│   │   │   ├── common/        # Design-system primitives, Logo, ThemeToggle, LanguageSwitcher
 │   │   │   ├── dashboard/     # StatCard, DataTable, ActivityFeed, modals
 │   │   │   ├── forms/         # Input, PasswordInput, Select, SearchBar, filters
-│   │   │   └── navigation/    # PublicNavbar, DashboardNavbar, Sidebar, PageHeader
-│   │   ├── contexts/          # AuthContext, ThemeContext, DemoContext (mock clinical UI)
+│   │   │   ├── landing/       # HeroEcosystemVisual, MultilingualShowcase, SectionHeading
+│   │   │   └── navigation/    # PublicNavbar, PublicFooter, DashboardNavbar, Sidebar
+│   │   ├── contexts/          # AuthContext, ThemeContext, LanguageContext, DemoContext
 │   │   ├── data/              # Fictional synthetic clinical preview datasets
-│   │   ├── hooks/             # useAuth, useTheme, useDemo, useDocumentTitle
+│   │   ├── hooks/             # useAuth, useTheme, useLanguage, useDemo, useDocumentTitle
+│   │   ├── i18n/              # Typed English (en) & Hindi (hi) translation dictionaries
 │   │   ├── layouts/           # PublicLayout, AuthLayout, DashboardLayout
-│   │   ├── pages/             # public/, auth/, patient/, doctor/, admin/
-│   │   ├── routes/            # AppRouter (37 routes + RBAC guards) & navigation config
+│   │   ├── pages/             # public/ (Landing, Privacy, Terms, 403, 404), auth/, patient/, doctor/, admin/
+│   │   ├── routes/            # AppRouter (39 routes + RBAC guards) & navigation config
 │   │   ├── services/          # api.ts (credentials + CSRF + silent refresh), auth.ts
 │   │   ├── styles/            # tokens.css (light & dark healthcare tokens)
 │   │   ├── test/              # Vitest + React Testing Library suite
 │   │   ├── types/             # auth.ts, api.ts, domain.ts
-│   │   └── utils/             # env.ts, password.ts, format.ts, cn.ts
+│   │   └── utils/             # env.ts, password.ts, scroll.ts, format.ts, cn.ts
 │   ├── .env.example
 │   ├── Dockerfile
 │   ├── nginx.conf
@@ -397,6 +400,7 @@ docker compose down
 - [x] **Phase 1 — Project Setup & Foundation:** Repository architecture, React + Vite + TypeScript + Tailwind frontend scaffold, FastAPI + SQLAlchemy + Alembic backend scaffold, PostgreSQL + SQLite fallback, environment templates, Docker Compose stack, Git security rules, and baseline health tests.
 - [x] **Phase 2 — UI/UX Design & Frontend Architecture:** Healthcare design system and light/dark themes, public landing page, reusable component & chart library, responsive Patient, Doctor, and Admin dashboards with separated fictional preview datasets, and automated UI tests.
 - [x] **Phase 3 — Authentication & Role-Based Access Control:** `users` and `refresh_tokens` ORM models and Alembic migration, Argon2id password hashing, signed JWT + rotating refresh tokens in `HttpOnly` `SameSite` cookies, double-submit CSRF protection, brute-force rate limiting, server-side RBAC dependencies, admin user/doctor-approval management, secure `create_admin` CLI, connected React auth flows & route guards, session restoration, logout revocation, and automated backend + frontend test suites.
+- [x] **Phase 4 — Landing Page & Public Experience:** Production-grade public landing experience with refined CareBridge AI brand mark and Open Graph metadata, sticky section-aware navbar, interactive 6-stage connected care ecosystem hero, Problem, Solution, How It Works, 10 status-transparent Key Features, Patient/Doctor/Admin role experience pathways wired to live auth, Population Health Impact, live English & Hindi (`i18n`) language switching, truthful Privacy/Security and medical disclaimer section, About Team ALPHA & Contact sections, comprehensive footer with Privacy Policy (`/privacy`) and Terms of Service (`/terms`) placeholder pages, reduced-motion accessibility, and full light/dark mode compatibility.
 - [ ] **Upcoming Phases:** Clinical domain database models, AI-assisted medical report analysis, explainable risk prioritization, real appointment & referral workflows, follow-up notifications, and live population-health analytics.
 
 ---

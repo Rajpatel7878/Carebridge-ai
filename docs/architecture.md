@@ -3,8 +3,9 @@
 **Project:** CareBridge AI  
 **Team:** ALPHA  
 **Competition:** Future Health Challenge — Population Health  
-**Tagline:** *"From Early Screening to Timely Care — One Intelligent Platform."*  
-**Architecture Revision:** Phase 3 (Authentication & Role-Based Access Control)
+**Tagline:** *"Connecting Every Patient to the Care They Need."*  
+**Supporting Tagline:** *"From health screening to timely care — one intelligent healthcare connection."*  
+**Architecture Revision:** Phase 4 (Landing Page, Public Experience & Bilingual i18n)
 
 ---
 

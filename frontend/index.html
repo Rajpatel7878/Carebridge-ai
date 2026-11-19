@@ -6,10 +6,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="CareBridge AI — Connecting Every Patient to the Care They Need. AI-powered Population Health Management Platform by Team ALPHA."
+      content="CareBridge AI connects health screening, intelligent risk prioritization, referrals, and follow-ups — connecting every patient to the care they need. Built by Team ALPHA for the Future Health Challenge (Population Health)."
     />
+    <meta name="author" content="Team ALPHA" />
+    <meta name="robots" content="index, follow" />
+    <meta
+      name="theme-color"
+      content="#1769AA"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0B1220"
+      media="(prefers-color-scheme: dark)"
+    />
+
+    <!-- Open Graph Metadata -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CareBridge AI" />
+    <meta
+      property="og:title"
+      content="CareBridge AI — Connecting Every Patient to the Care They Need."
+    />
+    <meta
+      property="og:description"
+      content="From health screening to timely care — one intelligent healthcare connection uniting patients, doctors, and population health administrators."
+    />
+    <meta property="og:image" content="/og-cover.svg" />
+    <meta
+      property="og:image:alt"
+      content="CareBridge AI — From health screening to timely care across screening, report understanding, risk prioritization, doctor review, referral, and follow-up."
+    />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="hi_IN" />
+
+    <!-- Twitter Card Metadata -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="CareBridge AI — Connecting Every Patient to the Care They Need."
+    />
+    <meta
+      name="twitter:description"
+      content="Healthcare shouldn't stop at screening. CareBridge AI coordinates screening reports, risk prioritization, referrals, and follow-up care."
+    />
+    <meta name="twitter:image" content="/og-cover.svg" />
+
     <title>
-      CareBridge AI — Connecting Every Patient to the Care They Need
+      CareBridge AI — Connecting Every Patient to the Care They Need.
     </title>
     <script>
       (function () {
@@ -27,6 +71,11 @@
           var root = document.documentElement;
           root.classList.toggle('dark', theme === 'dark');
           root.style.colorScheme = theme;
+
+          var storedLang = localStorage.getItem('carebridge-language');
+          if (storedLang === 'en' || storedLang === 'hi') {
+            root.lang = storedLang;
+          }
         } catch (_err) {
           // Ignore storage access errors in restricted environments
         }

@@ -39,16 +39,22 @@ import { PatientRiskPage } from '@/pages/patient/PatientRiskPage';
 import { PatientSettingsPage } from '@/pages/patient/PatientSettingsPage';
 import { LandingPage } from '@/pages/public/LandingPage';
 import { NotFoundPage } from '@/pages/public/NotFoundPage';
+import { PrivacyPolicyPage } from '@/pages/public/PrivacyPolicyPage';
+import { TermsOfServicePage } from '@/pages/public/TermsOfServicePage';
 import { UnauthorizedPage } from '@/pages/public/UnauthorizedPage';
+import { scrollToSectionId } from '@/utils/scroll';
 
 function ScrollManager() {
   const { pathname, hash } = useLocation();
 
   useEffect(() => {
     if (hash) {
-      const target = document.getElementById(hash.slice(1));
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth' });
+      const sectionId = hash.slice(1);
+      if (sectionId === 'home') {
+        window.scrollTo(0, 0);
+        return;
+      }
+      if (scrollToSectionId(sectionId)) {
         return;
       }
     }
@@ -66,6 +72,8 @@ export function AppRouter() {
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
         </Route>
 
         {/* Authentication Screens */}

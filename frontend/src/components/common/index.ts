@@ -14,6 +14,10 @@ export {
 } from './Dropdown';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
+export {
+  LanguageSwitcher,
+  type LanguageSwitcherProps,
+} from './LanguageSwitcher';
 export { LoadingState, type LoadingStateProps } from './LoadingState';
 export { Logo, type LogoProps } from './Logo';
 export { Modal, type ModalProps } from './Modal';

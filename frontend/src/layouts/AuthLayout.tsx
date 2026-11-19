@@ -26,51 +26,24 @@ export function AuthLayout() {
       {/* Left clinical brand panel (desktop) */}
       <aside className="relative hidden flex-col justify-between bg-[#134E80] p-10 text-white lg:col-span-5 lg:flex xl:p-12 dark:bg-[#0E243D] dark:border-r dark:border-[var(--cb-border)]">
         <div>
-          <Link to="/" className="inline-flex items-center gap-2.5">
-            <svg
-              viewBox="0 0 40 40"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-              className="h-9 w-9"
-            >
-              <rect
-                width="40"
-                height="40"
-                rx="10"
-                fill="#FFFFFF"
-                fillOpacity="0.14"
-              />
-              <path
-                d="M8.5 25.5C11.8 18 15.6 15.5 20 15.5C24.4 15.5 28.2 18 31.5 25.5"
-                stroke="#2DD4BF"
-                strokeWidth="3.2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M20 9.5V21.5M14 15.5H26"
-                stroke="#FFFFFF"
-                strokeWidth="3.2"
-                strokeLinecap="round"
-              />
-              <circle cx="8.5" cy="25.5" r="2.2" fill="#FFFFFF" />
-              <circle cx="31.5" cy="25.5" r="2.2" fill="#FFFFFF" />
-            </svg>
-            <span className="text-lg font-bold tracking-tight">
-              CareBridge <span className="text-[#5EEAD4]">AI</span>
-            </span>
+          <Link
+            to="/"
+            aria-label="CareBridge AI Home"
+            className="inline-flex items-center"
+          >
+            <Logo size="lg" variant="inverse" />
           </Link>
 
           <div className="mt-14 max-w-md">
             <p className="text-xs font-semibold tracking-wider text-[#99F6E4] uppercase">
-              Population Health Management
+              Population Health &middot; Team ALPHA
             </p>
             <h2 className="mt-3 text-3xl leading-tight font-bold tracking-tight">
               Connecting Every Patient to the Care They Need.
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-slate-200">
-              Unifying preventive screenings, clinical report review, specialist
-              referrals, and timely follow-ups across communities.
+              From health screening to timely care — one intelligent healthcare
+              connection uniting patients, doctors, and care coordinators.
             </p>
           </div>
 

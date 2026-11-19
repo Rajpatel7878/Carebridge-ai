@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             charts: ['recharts'],
             forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+            icons: ['lucide-react'],
           },
         },
       },

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DemoProvider } from '@/contexts/DemoContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AppRouter } from '@/routes/AppRouter';
 import * as authService from '@/services/auth';
@@ -77,11 +78,13 @@ function renderAt(path: string, options: RenderOptions = { user: null }) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <ThemeProvider>
-        <AuthProvider initialUser={initialUser}>
-          <DemoProvider>
-            <AppRouter />
-          </DemoProvider>
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider initialUser={initialUser}>
+            <DemoProvider>
+              <AppRouter />
+            </DemoProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </MemoryRouter>,
   );
@@ -96,7 +99,17 @@ interface RouteSpec {
 const ALL_ROUTES: RouteSpec[] = [
   {
     path: '/',
-    expectedHeading: /Connecting Every Patient to the Care They Need/i,
+    expectedHeading: /Healthcare Shouldn't Stop at Screening\./i,
+    asRole: null,
+  },
+  {
+    path: '/privacy',
+    expectedHeading: /Privacy Policy \(Prototype Placeholder\)/i,
+    asRole: null,
+  },
+  {
+    path: '/terms',
+    expectedHeading: /Terms of Service \(Prototype Placeholder\)/i,
     asRole: null,
   },
   {
@@ -742,5 +755,198 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
       }
       unmount();
     }
+  });
+
+  it('verifies Phase 4 public landing sections, navbar states, mobile menu, anchor targets, and CTAs', async () => {
+    const user = userEvent.setup();
+    const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView');
+
+    const landingView = renderAt('/', { user: null });
+
+    // Accessible skip link + exactly one h1 on landing page
+    const skipLink = screen.getByRole('link', {
+      name: /skip to main content/i,
+    });
+    expect(skipLink).toHaveAttribute('href', '#main-content');
+    expect(document.getElementById('main-content')).toBeInTheDocument();
+    const h1Elements = screen.getAllByRole('heading', { level: 1 });
+    expect(h1Elements).toHaveLength(1);
+    expect(h1Elements[0]).toHaveTextContent(
+      "Healthcare Shouldn't Stop at Screening.",
+    );
+
+    // Every required landing page section heading & disclaimer is rendered
+    for (const heading of [
+      /The Missing Link in Healthcare/i,
+      /One Connected Journey From Screening to Care/i,
+      /Six Connected Steps From Screening to Follow-up/i,
+      /Purpose-Built Modules Across the Care Continuum/i,
+      /Your Health Journey, Clearly Connected\./i,
+      /More Visibility\. Better Care Coordination\./i,
+      /See the Bigger Picture of Population Health\./i,
+      /Moving From Fragmented Care to Connected Care/i,
+      /Designed to Communicate Clearly in English and Hindi/i,
+      /Healthcare Information Deserves Careful Protection\./i,
+      /Bridging the Gap Between Health Screening and Care Delivery/i,
+      /Let's Make Every Health Screening Count\./i,
+    ]) {
+      expect(
+        screen.getByRole('heading', { name: heading }),
+      ).toBeInTheDocument();
+    }
+
+    expect(
+      screen.getAllByText(
+        /CareBridge AI is a healthcare coordination and decision-support prototype\. It does not replace a qualified healthcare professional, provide a definitive diagnosis or serve as an emergency medical service\./i,
+      ).length,
+    ).toBeGreaterThanOrEqual(2);
+
+    // Verify all section anchor links on `/` correspond to real DOM section IDs and no fake mailto/tel exists
+    for (const anchor of screen.getAllByRole('link')) {
+      const href = anchor.getAttribute('href') ?? '';
+      expect(href).not.toBe('#');
+      expect(href.startsWith('mailto:')).toBe(false);
+      expect(href.startsWith('tel:')).toBe(false);
+      const hashPart = href.split('#')[1];
+      if (hashPart) {
+        expect(
+          document.getElementById(hashPart),
+          `Missing section element for #${hashPart}`,
+        ).not.toBeNull();
+      }
+    }
+
+    // Smooth-scroll secondary CTA ("Explore How It Works") + navbar link
+    await user.click(
+      screen.getByRole('link', { name: /explore how it works/i }),
+    );
+    expect(scrollSpy).toHaveBeenCalled();
+
+    // Mobile hamburger menu opens, exposes section + auth links, and closes on Escape
+    const mobileToggle = screen.getByRole('button', {
+      name: /open navigation menu/i,
+    });
+    expect(mobileToggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(mobileToggle);
+    expect(
+      screen.getByRole('navigation', { name: /mobile navigation/i }),
+    ).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(
+      screen.queryByRole('navigation', { name: /mobile navigation/i }),
+    ).not.toBeInTheDocument();
+
+    // Interactive Hero ecosystem stage selector & Next button
+    await user.click(screen.getByRole('button', { name: /04\s*doctor/i }));
+    expect(
+      screen.getByText(/determines appropriate specialist referrals/i),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /next care stage/i }));
+    expect(
+      screen.getByText(
+        /connects each referral to scheduled appointments and reminders/i,
+      ),
+    ).toBeInTheDocument();
+
+    // Interactive feature availability filters (10 total: 2 live, 5 preview, 3 planned)
+    await user.click(screen.getByRole('button', { name: /active now\s*2/i }));
+    expect(
+      screen.getByRole('heading', { name: /secure user access/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /smart patient referral/i }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /all features\s*10/i }),
+    );
+    expect(
+      screen.getByRole('heading', { name: /smart patient referral/i }),
+    ).toBeInTheDocument();
+
+    // Guest clicking "Explore Doctor Experience" redirects cleanly to /login (no auth bypass)
+    await user.click(
+      screen.getByRole('link', { name: /explore doctor experience/i }),
+    );
+    expect(
+      screen.getByRole('heading', { name: /sign in to carebridge ai/i }),
+    ).toBeInTheDocument();
+    landingView.unmount();
+
+    // Authenticated Doctor visiting `/` sees Dashboard CTA pointing to /doctor and no navbar Login link
+    const authedLanding = renderAt('/', { user: buildTestUser('DOCTOR') });
+    const dashboardLinks = screen.getAllByRole('link', {
+      name: /^dashboard$/i,
+    });
+    expect(dashboardLinks[0]).toHaveAttribute('href', '/doctor');
+    await user.click(
+      screen.getByRole('link', { name: /explore doctor experience/i }),
+    );
+    expect(
+      screen.getByRole('heading', { name: /dr\. raghav kulkarni/i }),
+    ).toBeInTheDocument();
+    authedLanding.unmount();
+
+    scrollSpy.mockRestore();
+  });
+
+  it('switches the live public experience between English and Hindi and navigates to legal pages', async () => {
+    const user = userEvent.setup();
+    const view = renderAt('/', { user: null });
+
+    expect(document.documentElement.lang).toBe('en');
+
+    // Switch to Hindi via the accessible language selector
+    const hindiButtons = screen.getAllByRole('button', {
+      name: /select language: hindi/i,
+    });
+    await user.click(hindiButtons[0]!);
+
+    expect(document.documentElement.lang).toBe('hi');
+    expect(window.localStorage.getItem('carebridge-language')).toBe('hi');
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /स्वास्थ्य देखभाल केवल जांच पर नहीं रुकनी चाहिए।/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: /आइए हर स्वास्थ्य जांच को सार्थक बनाएँ।/,
+      }),
+    ).toBeInTheDocument();
+
+    // Navigate to Privacy Policy in Hindi and verify localized legal page renders
+    await user.click(screen.getByRole('link', { name: /^गोपनीयता नीति$/ }));
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /गोपनीयता नीति \(प्रोटोटाइप प्रारूप\)/,
+      }),
+    ).toBeInTheDocument();
+
+    // Switch back to English and open Terms of Service
+    const englishButtons = screen.getAllByRole('button', {
+      name: /भाषा चुनें: english/i,
+    });
+    await user.click(englishButtons[0]!);
+    expect(document.documentElement.lang).toBe('en');
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /Privacy Policy \(Prototype Placeholder\)/i,
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByRole('link', { name: /^terms of service$/i })[0]!,
+    );
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /Terms of Service \(Prototype Placeholder\)/i,
+      }),
+    ).toBeInTheDocument();
+
+    view.unmount();
   });
 });

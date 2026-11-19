@@ -7,6 +7,7 @@
   html {
     font-family: var(--cb-font-sans);
     scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
     overflow-x: hidden;
   }
 
@@ -32,6 +33,22 @@
   }
 }
 
+/* Respect user reduced-motion preferences across scrolling, transitions & animations */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Reusable semantic utility surfaces powered by design tokens */
 .cb-card {
   background-color: var(--cb-surface);
@@ -47,4 +64,48 @@
 
 .cb-tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Subtle clinical background wash for hero & featured public sections */
+.cb-hero-surface {
+  background-color: var(--cb-surface);
+  background-image:
+    radial-gradient(
+      44rem 28rem at 88% 14%,
+      rgba(20, 184, 166, 0.08),
+      transparent 68%
+    ),
+    radial-gradient(
+      42rem 28rem at 8% 4%,
+      rgba(23, 105, 170, 0.07),
+      transparent 65%
+    );
+}
+
+.dark .cb-hero-surface {
+  background-color: var(--cb-surface);
+  background-image:
+    radial-gradient(
+      44rem 28rem at 88% 14%,
+      rgba(45, 212, 191, 0.09),
+      transparent 68%
+    ),
+    radial-gradient(
+      42rem 28rem at 8% 4%,
+      rgba(59, 154, 225, 0.11),
+      transparent 65%
+    );
+}
+
+.cb-card-interactive {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.cb-card-interactive:hover {
+  border-color: var(--cb-border-strong);
+  box-shadow: var(--cb-shadow-md);
+  transform: translateY(-2px);
 }
