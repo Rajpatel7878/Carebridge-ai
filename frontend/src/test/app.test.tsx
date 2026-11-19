@@ -9,7 +9,9 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AppRouter } from '@/routes/AppRouter';
 import * as authService from '@/services/auth';
+import * as patientService from '@/services/patient';
 import type { AccountRole, AuthUser } from '@/types/auth';
+import { RISK_COORDINATION_DISCLAIMER } from '@/types/patient';
 
 function buildTestUser(
   role: AccountRole,
@@ -139,7 +141,7 @@ const ALL_ROUTES: RouteSpec[] = [
   },
   {
     path: '/patient/reports',
-    expectedHeading: /My Health Reports/i,
+    expectedHeading: /My Medical Reports/i,
     asRole: 'PATIENT',
   },
   {
@@ -154,7 +156,7 @@ const ALL_ROUTES: RouteSpec[] = [
   },
   {
     path: '/patient/referrals',
-    expectedHeading: /^Referrals$/i,
+    expectedHeading: /Referral Tracking/i,
     asRole: 'PATIENT',
   },
   {
@@ -169,7 +171,7 @@ const ALL_ROUTES: RouteSpec[] = [
   },
   {
     path: '/patient/profile',
-    expectedHeading: /^Profile$/i,
+    expectedHeading: /^My Profile$/i,
     asRole: 'PATIENT',
   },
   {
@@ -303,6 +305,117 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
       items: [buildTestUser('ADMIN'), buildTestUser('DOCTOR')],
       total: 2,
     });
+    vi.spyOn(patientService, 'fetchPatientOverview').mockResolvedValue({
+      patient_name: 'Ananya Mehta',
+      preferred_language: 'en',
+      metrics: {
+        profile_completion_percentage: 50,
+        profile_completed_fields: 5,
+        profile_total_fields: 10,
+        total_reports: 0,
+        pending_review_reports: 0,
+        upcoming_appointments: 0,
+        pending_referrals: 0,
+        attention_follow_ups: 0,
+        overdue_follow_ups: 0,
+        unread_notifications: 0,
+      },
+      journey: [
+        {
+          key: 'screening',
+          label: 'Screening',
+          status: 'completed',
+          detail: 'Portal active.',
+        },
+        {
+          key: 'report_submitted',
+          label: 'Report Submitted',
+          status: 'current',
+          detail: 'Upload a report.',
+        },
+        {
+          key: 'review',
+          label: 'Review',
+          status: 'upcoming',
+          detail: 'Begins after upload.',
+        },
+        {
+          key: 'referral',
+          label: 'Referral',
+          status: 'upcoming',
+          detail: 'No referrals.',
+        },
+        {
+          key: 'appointment',
+          label: 'Appointment',
+          status: 'upcoming',
+          detail: 'No visits.',
+        },
+        {
+          key: 'follow_up',
+          label: 'Follow-up',
+          status: 'upcoming',
+          detail: 'No tasks.',
+        },
+      ],
+      recent_activity: [],
+    });
+    vi.spyOn(patientService, 'fetchPatientProfile').mockResolvedValue({
+      id: 'prof-1',
+      user_id: 'usr-patient-1',
+      full_name: 'Ananya Mehta',
+      email: 'ananya.mehta@example.org',
+      role: 'PATIENT',
+      is_verified: false,
+      account_created_at: '2026-11-18T10:00:00Z',
+      date_of_birth: null,
+      phone_number: null,
+      gender: null,
+      city: null,
+      state: null,
+      preferred_language: 'en',
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      completion_percentage: 30,
+      completed_fields: 3,
+      total_fields: 10,
+      created_at: '2026-11-18T10:00:00Z',
+      updated_at: '2026-11-18T10:00:00Z',
+    });
+    vi.spyOn(patientService, 'fetchPatientReports').mockResolvedValue({
+      items: [],
+      total: 0,
+      max_upload_mb: 10,
+      allowed_file_types: ['PDF', 'PNG', 'JPG'],
+    });
+    vi.spyOn(patientService, 'fetchPatientRiskAssessments').mockResolvedValue({
+      items: [],
+      total: 0,
+      disclaimer: RISK_COORDINATION_DISCLAIMER,
+    });
+    vi.spyOn(patientService, 'fetchPatientAppointments').mockResolvedValue({
+      items: [],
+      total: 0,
+      upcoming_count: 0,
+      past_count: 0,
+    });
+    vi.spyOn(patientService, 'fetchPatientReferrals').mockResolvedValue({
+      items: [],
+      total: 0,
+      active_count: 0,
+    });
+    vi.spyOn(patientService, 'fetchPatientFollowUps').mockResolvedValue({
+      items: [],
+      total: 0,
+      upcoming_count: 0,
+      overdue_count: 0,
+      completed_count: 0,
+    });
+    vi.spyOn(patientService, 'fetchPatientNotifications').mockResolvedValue({
+      items: [],
+      total: 0,
+      unread_count: 0,
+    });
   });
 
   afterEach(() => {
@@ -324,6 +437,11 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
       if (path === '/admin/doctors') {
         await waitFor(() =>
           expect(authService.fetchAdminUsers).toHaveBeenCalled(),
+        );
+      }
+      if (path.startsWith('/patient')) {
+        await waitFor(() =>
+          expect(patientService.fetchPatientNotifications).toHaveBeenCalled(),
         );
       }
 
@@ -571,6 +689,28 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
     vi.spyOn(authService, 'fetchCurrentUser').mockResolvedValueOnce(
       restoredPatient,
     );
+    vi.spyOn(patientService, 'fetchPatientProfile').mockResolvedValueOnce({
+      id: 'prof-rohan',
+      user_id: restoredPatient.id,
+      full_name: 'Rohan Malhotra',
+      email: 'rohan.malhotra@example.org',
+      role: 'PATIENT',
+      is_verified: false,
+      account_created_at: '2026-11-18T10:00:00Z',
+      date_of_birth: null,
+      phone_number: null,
+      gender: null,
+      city: null,
+      state: null,
+      preferred_language: 'en',
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      completion_percentage: 30,
+      completed_fields: 3,
+      total_fields: 10,
+      created_at: '2026-11-18T10:00:00Z',
+      updated_at: '2026-11-18T10:00:00Z',
+    });
     const logoutSpy = vi
       .spyOn(authService, 'logoutAccount')
       .mockResolvedValueOnce({ message: 'Signed out successfully.' });
@@ -584,9 +724,11 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
 
     // Restores authenticated profile with real user full_name, email, and role
     expect(
-      await screen.findByRole('heading', { level: 1, name: /^Profile$/i }),
+      await screen.findByDisplayValue('Rohan Malhotra'),
     ).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Rohan Malhotra')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /^My Profile$/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByDisplayValue('rohan.malhotra@example.org'),
     ).toBeInTheDocument();
@@ -686,9 +828,9 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
     ).toBeInTheDocument();
     docView.unmount();
 
-    // Patient report filter + empty state + modal
-    const reportView = renderAt('/patient/reports', {
-      user: buildTestUser('PATIENT'),
+    // Doctor report filter + empty state + modal
+    const reportView = renderAt('/doctor/reports', {
+      user: buildTestUser('DOCTOR'),
     });
     await user.type(
       screen.getByRole('searchbox'),
@@ -696,24 +838,55 @@ describe('CareBridge AI — Frontend Authentication, RBAC & UI Suite', () => {
     );
     expect(screen.getByText(/no matching records/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^reset$/i }));
-    await user.click(screen.getAllByRole('button', { name: /^view$/i })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /^review$/i })[0]!);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     reportView.unmount();
 
-    // Patient follow-up confirmation dialog
+    // Patient API-backed follow-up confirmation dialog
+    const sampleFollowUp = {
+      id: 'fu-1',
+      related_appointment_id: null,
+      related_referral_id: null,
+      scheduled_at: '2026-12-01T09:00:00Z',
+      follow_up_type: 'Repeat Blood Pressure Log',
+      status: 'PENDING' as const,
+      notes: 'Synthetic follow-up task',
+      is_overdue: false,
+      created_at: '2026-11-18T10:00:00Z',
+      updated_at: '2026-11-18T10:00:00Z',
+    };
+    vi.spyOn(patientService, 'fetchPatientFollowUps')
+      .mockResolvedValueOnce({
+        items: [sampleFollowUp],
+        total: 1,
+        upcoming_count: 1,
+        overdue_count: 0,
+        completed_count: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [{ ...sampleFollowUp, status: 'COMPLETED' }],
+        total: 1,
+        upcoming_count: 0,
+        overdue_count: 0,
+        completed_count: 1,
+      });
+    vi.spyOn(patientService, 'completePatientFollowUp').mockResolvedValueOnce({
+      ...sampleFollowUp,
+      status: 'COMPLETED',
+    });
+
     const followUpView = renderAt('/patient/follow-ups', {
       user: buildTestUser('PATIENT'),
     });
-    const beforeCount = screen.getAllByRole('button', {
-      name: /mark complete/i,
-    }).length;
     await user.click(
-      screen.getAllByRole('button', { name: /mark complete/i })[0]!,
+      await screen.findByRole('button', { name: /mark complete/i }),
     );
     await user.click(screen.getByRole('button', { name: /^mark completed$/i }));
-    expect(
-      screen.getAllByRole('button', { name: /mark complete/i }),
-    ).toHaveLength(beforeCount - 1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: /mark complete/i }),
+      ).not.toBeInTheDocument(),
+    );
     followUpView.unmount();
 
     // Forgot password validation & submission

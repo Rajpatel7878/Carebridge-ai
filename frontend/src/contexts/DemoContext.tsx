@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CheckCircle2, Info, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import { MOCK_NOTIFICATIONS } from '@/data';
 import type { AppNotification, UserRole } from '@/types/domain';
 import {
   DemoContext,
   type DemoContextValue,
   type ToastMessage,
+  type ToastTone,
 } from './demo-context';
 
 export function DemoProvider({ children }: { children: ReactNode }) {
@@ -19,11 +20,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const showToast = useCallback(
-    (
-      title: string,
-      description?: string,
-      tone: 'success' | 'info' = 'success',
-    ) => {
+    (title: string, description?: string, tone: ToastTone = 'success') => {
       const id = nextToastId.current++;
       setToasts((prev) => [
         ...prev.slice(-2),
@@ -95,6 +92,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               {toast.tone === 'success' ? (
                 <CheckCircle2
                   className="mt-0.5 h-5 w-5 shrink-0 text-[var(--cb-success)]"
+                  aria-hidden="true"
+                />
+              ) : toast.tone === 'warning' ? (
+                <AlertTriangle
+                  className="mt-0.5 h-5 w-5 shrink-0 text-[var(--cb-warning)]"
                   aria-hidden="true"
                 />
               ) : (

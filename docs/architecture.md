@@ -5,7 +5,7 @@
 **Competition:** Future Health Challenge — Population Health  
 **Tagline:** *"Connecting Every Patient to the Care They Need."*  
 **Supporting Tagline:** *"From health screening to timely care — one intelligent healthcare connection."*  
-**Architecture Revision:** Phase 4 (Landing Page, Public Experience & Bilingual i18n)
+**Architecture Revision:** Phase 5 (Patient Dashboard, Private Report Storage & Ownership-Scoped Patient Portal)
 
 ---
 
@@ -86,9 +86,25 @@ Authorization is enforced independently at both layers, with the backend acting 
 - **`0002_auth_users_and_refresh_tokens`:** Non-destructive, reversible migration creating:
   - `users`: `id` (UUID PK), `full_name`, `email` (unique + indexed), `hashed_password`, `role` (`PATIENT`/`DOCTOR`/`ADMIN`, CHECK-constrained + indexed), `requested_role` (nullable `DOCTOR`, CHECK-constrained), `is_active`, `is_verified`, `token_version`, `created_at`, `updated_at`.
   - `refresh_tokens`: `id` (UUID PK), `user_id` (FK → `users.id` `ON DELETE CASCADE`, indexed), `token_hash` (unique + indexed SHA-256), `family_id` (indexed), `is_persistent`, `expires_at` (indexed), `revoked_at`, `replaced_by_id`, `created_at`.
+- **`0003_patient_portal_models`:** Non-destructive, reversible migration creating Phase 5 patient portal tables:
+  - `patient_profiles`: 1:1 with `users.id` (unique FK `ON DELETE CASCADE`), optional `date_of_birth`, `phone_number`, `gender`, `city`, `state`, required `preferred_language` (`en`/`hi`), optional `emergency_contact_name`, `emergency_contact_phone`, timestamps.
+  - `medical_reports`: `patient_id` (FK → `users.id`), sanitized `original_filename`, unique opaque `stored_filename` (never exposed to clients), magic-byte-verified `file_type` (`PDF`/`PNG`/`JPG`), `file_size`, `upload_status`, `review_status`, timestamps.
+  - `risk_assessments`: Read-only extensible schema (`patient_id`, nullable `related_report_id`, nullable `reviewed_by_doctor_id`, `status`, nullable `risk_category`, `explanation`, `recommended_action`, `assessed_at`, timestamps). Automated risk generation is intentionally deferred beyond Phase 5.
+  - `appointments`: `patient_id`, nullable `doctor_id`, timezone-aware `scheduled_at`, `appointment_type`, `status` (`PENDING`/`CONFIRMED`/`COMPLETED`/`CANCELLED`), `location_or_mode`, `notes`, timestamps.
+  - `referrals`: Read-only for patients (`patient_id`, nullable `referring_doctor_id`, `referred_department`, restricted `reason`, `next_action`, `status` in `PENDING`/`ACCEPTED`/`SCHEDULED`/`COMPLETED`/`CANCELLED`, timestamps).
+  - `follow_ups`: `patient_id`, nullable `related_appointment_id`, nullable `related_referral_id`, timezone-aware `scheduled_at`, `follow_up_type`, `status` (`PENDING`/`COMPLETED`/`MISSED`/`CANCELLED`), restricted `notes`, timestamps.
+  - `notifications`: In-app user notifications (`user_id`, `title`, `message`, `notification_type`, `is_read`, `created_at`).
 
 ---
 
-## 5. Current Scope Boundary
+## 5. Private Medical Report Storage & Ownership Enforcement (Phase 5)
 
-Clinical workflow screens (reports, risk views, appointments, referrals, follow-ups, notifications, and population-health analytics) remain intentionally backed by clearly labeled synthetic preview data from Phase 2. Real clinical domain persistence, Gemini AI medical report analysis, risk scoring, scheduling, referral workflows, and live analytics are deferred to subsequent phases.
+- **Ownership Boundary:** Every `/api/patient/*` endpoint derives identity exclusively from `PatientUser` (server-verified access JWT + active `PATIENT` role + CSRF token on cookie mutations). Non-owned IDs return `404 Not Found` to prevent cross-patient enumeration, and all input payloads enforce `extra="forbid"`.
+- **Upload Security (`app/services/file_storage.py`):** Streams uploads in 64 KiB chunks enforcing `MAX_REPORT_UPLOAD_MB` (default `10` MB, `413` on overflow), rejects executables/scripts/SVG/double-extensions/empty files, validates PDF (`%PDF-` + `%%EOF`), PNG (`IHDR` + `IEND`), and JPEG (`SOI` + `EOI`) binary signatures, writes atomically (`0600`) under private git-ignored `UPLOAD_STORAGE_DIR` (`0700`) using random UUID hex keys, rolls back on DB failure, and streams downloads solely through `GET /api/patient/reports/{id}/download` with `X-Content-Type-Options: nosniff`, `Cache-Control: no-store, private`, and `Content-Security-Policy: default-src 'none'; sandbox`.
+- **Browser Storage Hygiene:** Zero auth tokens and zero patient medical/profile records are written to `localStorage` or `sessionStorage` (only `carebridge-theme` and `carebridge-language` UI preferences are stored).
+
+---
+
+## 6. Current Scope Boundary
+
+All nine patient portal routes (`/patient/*`) are backed by real database persistence and strict access control. Doctor (`/doctor/*`) and Admin (`/admin/*`) clinical views remain backed by synthetic preview datasets until their dedicated phases. Gemini AI integration, automated medical report extraction, clinical risk calculation, automated referral/scheduling generation, external SMS/email/push delivery, and live population-health analytics are intentionally deferred to subsequent phases.

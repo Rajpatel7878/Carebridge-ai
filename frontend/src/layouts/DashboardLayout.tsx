@@ -1,13 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { DashboardNavbar, Sidebar } from '@/components/navigation';
-import {
-  ACTIVE_DEMO_ADMIN,
-  ACTIVE_DEMO_DOCTOR,
-  ACTIVE_DEMO_PATIENT,
-} from '@/data';
+import { PatientPortalProvider } from '@/contexts/PatientPortalContext';
+import { ACTIVE_DEMO_ADMIN, ACTIVE_DEMO_DOCTOR } from '@/data';
 import { useAuth } from '@/hooks/useAuth';
 import { useDemo } from '@/hooks/useDemo';
+import { usePatientPortal } from '@/hooks/usePatientPortal';
 import { getRoleDisplayName } from '@/types/auth';
 import type { UserRole } from '@/types/domain';
 
@@ -22,8 +20,8 @@ function getFallbackIdentity(role: UserRole): {
 } {
   if (role === 'patient') {
     return {
-      name: ACTIVE_DEMO_PATIENT.fullName,
-      email: ACTIVE_DEMO_PATIENT.email,
+      name: 'Patient',
+      email: '',
       roleLabel: 'Patient',
     };
   }
@@ -41,17 +39,20 @@ function getFallbackIdentity(role: UserRole): {
   };
 }
 
-export function DashboardLayout({ role }: DashboardLayoutProps) {
+function DashboardShell({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const { getUnreadCount, showToast } = useDemo();
+  const { unreadCount: patientUnreadCount } = usePatientPortal();
 
   const fallback = getFallbackIdentity(role);
   const userName = user?.full_name ?? fallback.name;
   const userEmail = user?.email ?? fallback.email;
   const roleLabel = user ? getRoleDisplayName(user.role) : fallback.roleLabel;
-  const unreadCount = getUnreadCount(role);
+  const unreadCount =
+    role === 'patient' ? patientUnreadCount : getUnreadCount(role);
+  const userSubtitle = userEmail ? `${roleLabel} · ${userEmail}` : roleLabel;
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -79,7 +80,7 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
         <DashboardNavbar
           role={role}
           userName={userName}
-          userSubtitle={`${roleLabel} · ${userEmail}`}
+          userSubtitle={userSubtitle}
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onLogout={handleLogout}
         />
@@ -89,5 +90,13 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
         </main>
       </div>
     </div>
+  );
+}
+
+export function DashboardLayout({ role }: DashboardLayoutProps) {
+  return (
+    <PatientPortalProvider enabled={role === 'patient'}>
+      <DashboardShell role={role} />
+    </PatientPortalProvider>
   );
 }

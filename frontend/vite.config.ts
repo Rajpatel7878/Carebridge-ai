@@ -40,11 +40,32 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            charts: ['recharts'],
-            forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
-            icons: ['lucide-react'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('recharts') || id.includes('d3-')) {
+                return 'charts';
+              }
+              if (
+                id.includes('react-hook-form') ||
+                id.includes('@hookform/resolvers') ||
+                id.includes('/zod/')
+              ) {
+                return 'forms';
+              }
+              if (id.includes('lucide-react')) {
+                return 'icons';
+              }
+              if (
+                id.includes('/react/') ||
+                id.includes('/react-dom/') ||
+                id.includes('react-router') ||
+                id.includes('/scheduler/') ||
+                id.includes('/axios/')
+              ) {
+                return 'vendor';
+              }
+            }
+            return undefined;
           },
         },
       },

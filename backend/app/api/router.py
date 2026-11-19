@@ -1,12 +1,11 @@
-"""Root API router aggregating all endpoint modules."""
+"""Root API router aggregating all versioned/prefixed route modules."""
 
 from fastapi import APIRouter
 
-from app.api.routes.auth import router as auth_router
-from app.api.routes.health import router as health_router
-from app.api.routes.roles import router as roles_router
+from app.api.routes import auth, health, patient, roles
 
 api_router = APIRouter()
-api_router.include_router(health_router)
-api_router.include_router(auth_router)
-api_router.include_router(roles_router)
+api_router.include_router(health.router)
+api_router.include_router(auth.router)
+api_router.include_router(roles.router)
+api_router.include_router(patient.router)

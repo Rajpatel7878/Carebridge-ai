@@ -6,7 +6,7 @@
 **Team:** ALPHA  
 **Competition:** Future Health Challenge  
 **Category:** Population Health  
-**Current Status:** Phase 4 — Landing Page & Public Experience (Completed)
+**Current Status:** Phase 5 — Patient Dashboard & Patient Experience (Completed)
 
 ---
 
@@ -47,7 +47,7 @@ CareBridge AI closes the screening-to-care loop through a coordinated digital fo
 | --- | --- |
 | **Frontend** | React 19, Vite 7, TypeScript 5 (strict mode), Tailwind CSS 4, React Router 7, Axios, Lucide React, Recharts, React Hook Form, Zod |
 | **Code Quality** | ESLint 10, Prettier 3, TypeScript strict compiler checks |
-| **Backend** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, Pydantic Settings, python-dotenv, `email-validator` |
+| **Backend** | Python 3.11+, FastAPI, Uvicorn, `python-multipart`, Pydantic v2, Pydantic Settings, python-dotenv, `email-validator` |
 | **Authentication & Security** | Argon2id (`argon2-cffi`), PyJWT (`HS256`), HttpOnly `SameSite=Lax` cookies (`Secure` in HTTPS production), double-submit CSRF protection, refresh-token rotation + replay revocation, per-user `token_version` invalidation, sliding-window auth rate limiting |
 | **Database & ORM** | PostgreSQL 16 (primary), Psycopg 3, SQLAlchemy 2, Alembic migrations, SQLite (automatic local dev fallback) |
 | **Testing** | Pytest + HTTPX / FastAPI TestClient (backend), Vitest + React Testing Library + jsdom (frontend) |
@@ -91,17 +91,17 @@ carebridge-ai/
 │   │   │   ├── forms/         # Input, PasswordInput, Select, SearchBar, filters
 │   │   │   ├── landing/       # HeroEcosystemVisual, MultilingualShowcase, SectionHeading
 │   │   │   └── navigation/    # PublicNavbar, PublicFooter, DashboardNavbar, Sidebar
-│   │   ├── contexts/          # AuthContext, ThemeContext, LanguageContext, DemoContext
-│   │   ├── data/              # Fictional synthetic clinical preview datasets
-│   │   ├── hooks/             # useAuth, useTheme, useLanguage, useDemo, useDocumentTitle
+│   │   ├── contexts/          # AuthContext, PatientPortalContext, ThemeContext, LanguageContext, DemoContext
+│   │   ├── data/              # Fictional synthetic preview datasets (Doctor & Admin preview views)
+│   │   ├── hooks/             # useAuth, usePatientPortal, useTheme, useLanguage, useDemo, useDocumentTitle
 │   │   ├── i18n/              # Typed English (en) & Hindi (hi) translation dictionaries
 │   │   ├── layouts/           # PublicLayout, AuthLayout, DashboardLayout
-│   │   ├── pages/             # public/ (Landing, Privacy, Terms, 403, 404), auth/, patient/, doctor/, admin/
+│   │   ├── pages/             # public/, auth/, patient/ (live API-backed), doctor/, admin/
 │   │   ├── routes/            # AppRouter (39 routes + RBAC guards) & navigation config
-│   │   ├── services/          # api.ts (credentials + CSRF + silent refresh), auth.ts
+│   │   ├── services/          # api.ts (credentials + CSRF + silent refresh), auth.ts, patient.ts
 │   │   ├── styles/            # tokens.css (light & dark healthcare tokens)
-│   │   ├── test/              # Vitest + React Testing Library suite
-│   │   ├── types/             # auth.ts, api.ts, domain.ts
+│   │   ├── test/              # app.test.tsx & patient-portal.test.tsx (Vitest + RTL)
+│   │   ├── types/             # auth.ts, patient.ts, api.ts, domain.ts
 │   │   └── utils/             # env.ts, password.ts, scroll.ts, format.ts, cn.ts
 │   ├── .env.example
 │   ├── Dockerfile
@@ -113,26 +113,29 @@ carebridge-ai/
 │   ├── alembic/
 │   │   ├── versions/
 │   │   │   ├── 0001_initial_foundation.py
-│   │   │   └── 0002_auth_users_and_refresh_tokens.py
+│   │   │   ├── 0002_auth_users_and_refresh_tokens.py
+│   │   │   └── 0003_patient_portal_models.py
 │   │   └── env.py
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── deps/          # get_current_user, get_current_active_user, require_roles, verify_csrf
-│   │   │   ├── routes/        # health.py, auth.py, roles.py
+│   │   │   ├── routes/        # health.py, auth.py, roles.py, patient.py
 │   │   │   └── router.py
 │   │   ├── cli/               # create_admin.py (secure initial ADMIN provisioning)
 │   │   ├── core/              # config.py, security.py, rate_limit.py, exceptions.py
 │   │   ├── database/          # base.py, session.py
 │   │   ├── middleware/        # error_handler.py (safe non-leaking JSON errors)
-│   │   ├── models/            # user.py (User, UserRole), refresh_token.py (RefreshToken)
-│   │   ├── schemas/           # auth.py, health.py
-│   │   ├── services/          # auth_service.py
+│   │   ├── models/            # User, RefreshToken, PatientProfile, MedicalReport, RiskAssessment, Appointment, Referral, FollowUp, Notification
+│   │   ├── schemas/           # auth.py, health.py, patient.py
+│   │   ├── services/          # auth_service.py, patient.py, file_storage.py
 │   │   ├── ai/                # Reserved for later phases
 │   │   └── main.py
+│   ├── uploads/               # Private git-ignored medical report storage (0700 dir / 0600 files)
 │   ├── tests/
 │   │   ├── conftest.py
 │   │   ├── test_health.py
-│   │   └── test_auth.py
+│   │   ├── test_auth.py
+│   │   └── test_patient.py
 │   ├── .env.example
 │   ├── alembic.ini
 │   ├── Dockerfile
@@ -299,6 +302,33 @@ Vite proxies `/api/*` directly to `http://127.0.0.1:8000` so `HttpOnly` `SameSit
 | `GET /api/admin/users/{user_id}` | `ADMIN` | Inspect a single user's safe account record |
 | `PATCH /api/admin/users/{user_id}` | `ADMIN` + `X-CSRF-Token` | Approve doctor requests, update role/verification, or activate/deactivate accounts (prevents self-lockout) |
 
+### Patient Portal API Endpoints (Phase 5)
+
+Every `/api/patient/*` endpoint enforces authentication, active `PATIENT` role (`403` for `DOCTOR`/`ADMIN`), strict server-side ownership (`patient_id == current_user.id`; `404` on non-owned IDs), `Cache-Control: no-store`, and `X-CSRF-Token` on all mutating cookie requests:
+
+| Method & Path | Auth / CSRF | Description |
+| --- | --- | --- |
+| `GET /api/patient/overview` | `PATIENT` | Live dashboard metrics, 6-stage Health Journey progress, and recent care activity |
+| `GET /api/patient/profile` | `PATIENT` | Retrieve authenticated patient's 1:1 profile & completion percentage (optional fields never forced) |
+| `PUT /api/patient/profile` | `PATIENT` + `X-CSRF-Token` | Validate and update permitted patient profile & language fields (`extra="forbid"`) |
+| `POST /api/patient/reports` | `PATIENT` + `X-CSRF-Token` | Upload verified PDF/PNG/JPG report (`<= MAX_REPORT_UPLOAD_MB`, magic-byte checked) to private storage |
+| `GET /api/patient/reports` | `PATIENT` | List patient's own uploaded reports (filterable by `file_type`, `review_status`, `search`) |
+| `GET /api/patient/reports/{report_id}` | `PATIENT` | Retrieve metadata for an owned medical report (never exposes storage keys/paths) |
+| `GET /api/patient/reports/{report_id}/download` | `PATIENT` | Stream owned report privately with `nosniff`, `no-store`, and safe `Content-Disposition` |
+| `GET /api/patient/risk-assessments` | `PATIENT` | Read-only authorized risk coordination summaries + clinical disclaimer (no AI/risk generation in Phase 5) |
+| `GET /api/patient/appointments` | `PATIENT` | List patient's upcoming and past appointments |
+| `GET /api/patient/appointments/{appointment_id}` | `PATIENT` | Retrieve details of an owned appointment |
+| `POST /api/patient/appointments/request` | `PATIENT` + `X-CSRF-Token` | Submit validated `PENDING` appointment request (future tz-aware date; no doctor self-assignment) |
+| `PATCH /api/patient/appointments/{appointment_id}/cancel` | `PATIENT` + `X-CSRF-Token` | Cancel an owned `PENDING` or `CONFIRMED` appointment |
+| `GET /api/patient/referrals` | `PATIENT` | Read-only list of patient's specialist/department referrals |
+| `GET /api/patient/referrals/{referral_id}` | `PATIENT` | Read-only details for an owned referral |
+| `GET /api/patient/follow-ups` | `PATIENT` | List patient's overdue, upcoming, and completed follow-up milestones |
+| `GET /api/patient/follow-ups/{follow_up_id}` | `PATIENT` | Retrieve details for an owned follow-up milestone |
+| `PATCH /api/patient/follow-ups/{follow_up_id}/complete` | `PATIENT` + `X-CSRF-Token` | Transition an owned `PENDING` follow-up to `COMPLETED` |
+| `GET /api/patient/notifications` | `PATIENT` | List in-app notifications (`unread_only` supported) with live `unread_count` |
+| `PATCH /api/patient/notifications/{notification_id}/read` | `PATIENT` + `X-CSRF-Token` | Mark a single owned notification as read |
+| `PATCH /api/patient/notifications/read-all` | `PATIENT` + `X-CSRF-Token` | Mark all unread notifications for the authenticated patient as read |
+
 ### Security Model Summary
 
 - **Password hashing:** Argon2id (`argon2-cffi`) with enforced policy (`8–128` chars, uppercase, lowercase, digit, special character) and timing-safe dummy verification on unknown emails.
@@ -347,6 +377,8 @@ Never commit `.env` files or real credentials. Use `.env.example`, `backend/.env
 | `LOGIN_RATE_LIMIT_IP_ATTEMPTS` | Root / Backend | `15` | Max login attempts per IP per window |
 | `REGISTER_RATE_LIMIT_IP_ATTEMPTS` | Root / Backend | `10` | Max registration attempts per IP per window |
 | `ADMIN_FULL_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | CLI only | *(unset)* | Optional one-shot env vars for `python -m app.cli.create_admin` |
+| `UPLOAD_STORAGE_DIR` | Root / Backend | `backend/uploads/medical_reports` | Private git-ignored directory for uploaded patient reports (never publicly mounted) |
+| `MAX_REPORT_UPLOAD_MB` | Root / Backend | `10` | Maximum allowed upload size in megabytes for PDF, PNG, and JPG reports |
 | `CORS_ORIGINS` | Root / Backend | `http://localhost:5173,...` | Comma-separated explicit allowed origins (supports credentials) |
 | `VITE_API_BASE_URL` | Root / Frontend | `/api` | Same-origin API prefix routed via Vite (dev) or Nginx (Docker/prod) |
 | `GEMINI_API_KEY` | Root / Backend | *(empty placeholder)* | Reserved for AI report workflows in later phases |
@@ -401,7 +433,8 @@ docker compose down
 - [x] **Phase 2 — UI/UX Design & Frontend Architecture:** Healthcare design system and light/dark themes, public landing page, reusable component & chart library, responsive Patient, Doctor, and Admin dashboards with separated fictional preview datasets, and automated UI tests.
 - [x] **Phase 3 — Authentication & Role-Based Access Control:** `users` and `refresh_tokens` ORM models and Alembic migration, Argon2id password hashing, signed JWT + rotating refresh tokens in `HttpOnly` `SameSite` cookies, double-submit CSRF protection, brute-force rate limiting, server-side RBAC dependencies, admin user/doctor-approval management, secure `create_admin` CLI, connected React auth flows & route guards, session restoration, logout revocation, and automated backend + frontend test suites.
 - [x] **Phase 4 — Landing Page & Public Experience:** Production-grade public landing experience with refined CareBridge AI brand mark and Open Graph metadata, sticky section-aware navbar, interactive 6-stage connected care ecosystem hero, Problem, Solution, How It Works, 10 status-transparent Key Features, Patient/Doctor/Admin role experience pathways wired to live auth, Population Health Impact, live English & Hindi (`i18n`) language switching, truthful Privacy/Security and medical disclaimer section, About Team ALPHA & Contact sections, comprehensive footer with Privacy Policy (`/privacy`) and Terms of Service (`/terms`) placeholder pages, reduced-motion accessibility, and full light/dark mode compatibility.
-- [ ] **Upcoming Phases:** Clinical domain database models, AI-assisted medical report analysis, explainable risk prioritization, real appointment & referral workflows, follow-up notifications, and live population-health analytics.
+- [x] **Phase 5 — Patient Dashboard & Patient Experience:** Complete backend- and database-connected Patient Portal across all 9 `/patient/*` routes (`PatientProfile`, `MedicalReport`, read-only `RiskAssessment`, `Appointment`, `Referral`, `FollowUp`, and `Notification` models + Alembic migration `0003_patient_portal_models`), strict `PATIENT` RBAC & cross-patient ownership isolation, magic-byte-verified private PDF/PNG/JPG report storage & authorized download, live overview metrics and 6-stage Health Journey timeline, `PENDING` appointment requests, read-only referral & risk tracking with clinical disclaimers, follow-up completion workflow, live in-app notifications, bilingual/theme settings, and automated backend + frontend test suites.
+- [ ] **Upcoming Phases:** Doctor clinical workflows, AI-assisted medical report analysis (Gemini integration), clinician risk review & referral creation, appointment confirmation scheduling, and live administrator population-health analytics.
 
 ---
 

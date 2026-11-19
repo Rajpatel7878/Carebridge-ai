@@ -1,133 +1,206 @@
-import { ShieldAlert } from 'lucide-react';
-import { TrendAreaChart } from '@/components/charts';
-import { Badge, Card, CardHeader, RiskBadge } from '@/components/common';
-import { PageHeader } from '@/components/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { Calendar, Info, ShieldAlert, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
-  ACTIVE_DEMO_PATIENT,
-  MOCK_PATIENT_HBA1C_HISTORY,
-  MOCK_PATIENT_RISK_FACTORS,
-} from '@/data';
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from '@/components/common';
+import { PageHeader } from '@/components/navigation';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { extractApiErrorMessage } from '@/services/api';
+import { fetchPatientRiskAssessments } from '@/services/patient';
+import {
+  RISK_CATEGORY_BADGES,
+  RISK_COORDINATION_DISCLAIMER,
+  type PatientRiskAssessment,
+} from '@/types/patient';
+import { formatDateTime } from '@/utils/format';
 
-const statusBadgeMap = {
-  optimal: { label: 'Within Target', variant: 'success' as const },
-  watch: { label: 'Monitor Closely', variant: 'warning' as const },
-  elevated: { label: 'Above Target', variant: 'critical' as const },
-};
+const STATUS_LABELS = {
+  PENDING: { label: 'Pending Review', variant: 'warning' },
+  REVIEWED: { label: 'Clinician Reviewed', variant: 'success' },
+  ARCHIVED: { label: 'Archived', variant: 'neutral' },
+} as const;
 
 export function PatientRiskPage() {
   useDocumentTitle('Risk Overview');
-  const patient = ACTIVE_DEMO_PATIENT;
+
+  const [assessments, setAssessments] = useState<PatientRiskAssessment[]>([]);
+  const [disclaimer, setDisclaimer] = useState(RISK_COORDINATION_DISCLAIMER);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAssessments = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetchPatientRiskAssessments();
+      setAssessments(response.items);
+      if (response.disclaimer) {
+        setDisclaimer(response.disclaimer);
+      }
+    } catch (err) {
+      setError(
+        extractApiErrorMessage(
+          err,
+          'Unable to load your risk overview right now.',
+        ),
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPatientRiskAssessments()
+      .then((response) => {
+        if (cancelled) return;
+        setAssessments(response.items);
+        if (response.disclaimer) {
+          setDisclaimer(response.disclaimer);
+        }
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          extractApiErrorMessage(
+            err,
+            'Unable to load your risk overview right now.',
+          ),
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Risk Overview"
-        subtitle="Understand the health indicators shaping your care priority level and track progress over time."
-        badge={<RiskBadge level={patient.riskLevel} />}
+        subtitle="Read-only care coordination summaries provided by authorized clinical review workflows."
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <Card className="lg:col-span-5">
-          <CardHeader
-            title="Current Priority Summary"
-            description="Illustrative risk profile derived from fictional screening data."
-          />
-          <div className="rounded-xl border border-[var(--cb-border)] bg-[var(--cb-surface-subtle)]/65 p-5">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-xs font-semibold tracking-wider text-[var(--cb-text-muted)] uppercase">
-                Composite Index
-              </span>
-              <RiskBadge level={patient.riskLevel} />
-            </div>
-            <p className="mt-2 text-4xl font-bold text-[var(--cb-text)] cb-tabular">
-              {patient.riskScore}
-              <span className="text-base font-medium text-[var(--cb-text-muted)]">
-                {' '}
-                / 100
-              </span>
-            </p>
-            <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-[var(--cb-border)]">
-              <div
-                className="h-full rounded-full bg-[var(--cb-warning)]"
-                style={{ width: `${patient.riskScore}%` }}
-              />
-            </div>
-            <p className="mt-3 text-xs leading-relaxed text-[var(--cb-text-secondary)]">
-              Your profile sits in the <strong>Moderate</strong> tier due to
-              mildly elevated HbA1c (7.2%) and LDL cholesterol (136 mg/dL).
-              Kidney health, retinal screening, and visit adherence remain
-              strong.
-            </p>
-          </div>
-
-          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-[var(--cb-border)] p-3.5 text-xs text-[var(--cb-text-muted)]">
-            <ShieldAlert
-              aria-hidden="true"
-              className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cb-primary)]"
-            />
-            <span>
-              Mock risk visualization for Phase 2 UI only. Risk indicators are
-              educational and reviewed with a licensed physician — never a
-              standalone medical diagnosis.
-            </span>
-          </div>
-        </Card>
-
-        <Card className="lg:col-span-7">
-          <CardHeader
-            title="Systolic Blood Pressure Trend (mmHg)"
-            description="Steady improvement across the last four quarterly check-ins (demo data)."
-          />
-          <TrendAreaChart
-            data={MOCK_PATIENT_HBA1C_HISTORY}
-            xKey="month"
-            series={[
-              {
-                dataKey: 'systolicBp',
-                label: 'Systolic BP (mmHg)',
-                colorKey: 'primary',
-              },
-            ]}
-          />
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader
-          title="Contributing Health Indicators"
-          description="Each indicator compares your most recent screening measurement with your care team's target range."
+      {isLoading ? (
+        <LoadingState
+          label="Checking authorized risk assessments..."
+          rows={3}
         />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {MOCK_PATIENT_RISK_FACTORS.map((item) => {
-            const meta = statusBadgeMap[item.status];
+      ) : error ? (
+        <ErrorState
+          title="Could not load risk assessments"
+          message={error}
+          onRetry={() => void loadAssessments()}
+        />
+      ) : assessments.length === 0 ? (
+        <EmptyState
+          icon={<ShieldAlert className="h-6 w-6" aria-hidden="true" />}
+          title="No risk assessment is available yet."
+          description="When an authorized clinician reviews your submitted screening or medical reports and publishes a care-coordination risk summary, it will appear here. CareBridge AI never generates placeholder scores or diagnoses."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              <Link to="/patient/reports">
+                <Button size="sm" leftIcon={<Upload className="h-4 w-4" />}>
+                  Upload Health Report
+                </Button>
+              </Link>
+              <Link to="/patient/appointments">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Calendar className="h-4 w-4" />}
+                >
+                  Request Appointment
+                </Button>
+              </Link>
+            </div>
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {assessments.map((record) => {
+            const statusMeta = STATUS_LABELS[record.status];
+            const categoryMeta = record.risk_category
+              ? RISK_CATEGORY_BADGES[record.risk_category]
+              : null;
+
             return (
-              <div
-                key={item.factor}
-                className="rounded-xl border border-[var(--cb-border)] p-4"
-              >
+              <Card key={record.id} className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-[var(--cb-text)]">
-                    {item.factor}
-                  </h3>
-                  <Badge variant={meta.variant}>{meta.label}</Badge>
-                </div>
-                <div className="mt-2.5 flex items-center gap-4 text-xs cb-tabular">
-                  <span className="font-semibold text-[var(--cb-text)]">
-                    Observed: {item.reading}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={statusMeta.variant} dot>
+                      {statusMeta.label}
+                    </Badge>
+                    {categoryMeta && (
+                      <Badge variant={categoryMeta.variant} dot>
+                        {categoryMeta.label}
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-[var(--cb-text-muted)] cb-tabular">
+                    Assessed {formatDateTime(record.assessed_at)}
                   </span>
-                  <span className="text-[var(--cb-text-muted)]">
-                    Target: {item.target}
+                </div>
+
+                {record.explanation && (
+                  <div>
+                    <h2 className="text-xs font-semibold tracking-wide text-[var(--cb-text-muted)] uppercase">
+                      Coordination Summary
+                    </h2>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--cb-text)]">
+                      {record.explanation}
+                    </p>
+                  </div>
+                )}
+
+                {record.recommended_action && (
+                  <div className="rounded-xl border border-[var(--cb-primary-border)] bg-[var(--cb-primary-soft)]/45 p-3.5">
+                    <h3 className="text-xs font-semibold text-[var(--cb-primary)]">
+                      Recommended Next Action
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--cb-text)]">
+                      {record.recommended_action}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--cb-border)] pt-3 text-xs text-[var(--cb-text-muted)]">
+                  <span>
+                    Reviewing professional:{' '}
+                    <strong className="font-medium text-[var(--cb-text-secondary)]">
+                      {record.reviewing_professional_name ?? 'Not specified'}
+                    </strong>
+                  </span>
+                  <span className="cb-tabular">
+                    Updated {formatDateTime(record.updated_at)}
                   </span>
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-[var(--cb-text-muted)]">
-                  {item.explanation}
-                </p>
-              </div>
+              </Card>
             );
           })}
         </div>
-      </Card>
+      )}
+
+      {/* Mandatory clinical disclaimer */}
+      <div
+        role="note"
+        className="flex items-start gap-3 rounded-xl border border-[var(--cb-border)] bg-[var(--cb-surface)] p-4 text-xs leading-relaxed text-[var(--cb-text-secondary)] sm:text-sm"
+      >
+        <Info
+          className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cb-primary)]"
+          aria-hidden="true"
+        />
+        <p>{disclaimer}</p>
+      </div>
     </div>
   );
 }

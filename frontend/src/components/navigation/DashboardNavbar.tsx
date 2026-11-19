@@ -1,11 +1,21 @@
-import { Bell, ChevronRight, LogOut, Menu, Settings, User } from 'lucide-react';
+import {
+  Bell,
+  ChevronRight,
+  LogOut,
+  Menu,
+  Settings,
+  ShieldCheck,
+  User,
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Dropdown, type DropdownMenuItem } from '@/components/common/Dropdown';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useDemo } from '@/hooks/useDemo';
+import { usePatientPortal } from '@/hooks/usePatientPortal';
 import { ROLE_PORTALS, resolveBreadcrumbs } from '@/routes/navigation';
 import type { UserRole } from '@/types/domain';
-import { getInitials } from '@/utils/format';
+import { NOTIFICATION_ROUTE_MAP } from '@/types/patient';
+import { formatDateTime, getInitials } from '@/utils/format';
 
 export interface DashboardNavbarProps {
   role: UserRole;
@@ -25,21 +35,48 @@ export function DashboardNavbar({
   const { pathname } = useLocation();
   const { getRoleNotifications, getUnreadCount, markNotificationRead } =
     useDemo();
+  const {
+    notifications: patientNotifications,
+    unreadCount: patientUnreadCount,
+    markOneRead: markPatientRead,
+  } = usePatientPortal();
 
   const portal = ROLE_PORTALS[role];
   const breadcrumbs = resolveBreadcrumbs(role, pathname);
-  const roleNotifications = getRoleNotifications(role);
-  const unreadCount = getUnreadCount(role);
 
-  const notificationItems: DropdownMenuItem[] = roleNotifications
-    .slice(0, 3)
-    .map((item) => ({
-      id: item.id,
-      label: item.title,
-      description: item.timestamp,
-      to: item.actionPath,
-      onSelect: () => markNotificationRead(item.id),
-    }));
+  const isPatient = role === 'patient';
+  const unreadCount = isPatient ? patientUnreadCount : getUnreadCount(role);
+
+  const notificationItems: DropdownMenuItem[] = isPatient
+    ? patientNotifications.length > 0
+      ? patientNotifications.slice(0, 4).map((item) => ({
+          id: item.id,
+          label: item.is_read ? item.title : `• ${item.title}`,
+          description: formatDateTime(item.created_at),
+          to: NOTIFICATION_ROUTE_MAP[item.notification_type],
+          onSelect: () => {
+            if (!item.is_read) {
+              void markPatientRead(item.id);
+            }
+          },
+        }))
+      : [
+          {
+            id: 'empty-notifications',
+            label: 'No notifications yet',
+            description: 'Updates on your reports and visits will appear here.',
+            to: portal.notificationsPath,
+          },
+        ]
+    : getRoleNotifications(role)
+        .slice(0, 3)
+        .map((item) => ({
+          id: item.id,
+          label: item.title,
+          description: item.timestamp,
+          to: item.actionPath,
+          onSelect: () => markNotificationRead(item.id),
+        }));
 
   if (role !== 'admin') {
     notificationItems.push({
@@ -133,13 +170,20 @@ export function DashboardNavbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-        <span className="hidden items-center gap-1.5 rounded-full border border-[var(--cb-border)] bg-[var(--cb-surface-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--cb-text-muted)] xl:inline-flex">
-          <span
-            aria-hidden="true"
-            className="h-1.5 w-1.5 rounded-full bg-[var(--cb-secondary)]"
-          />
-          Sample Clinical Data
-        </span>
+        {isPatient ? (
+          <span className="hidden items-center gap-1.5 rounded-full border border-[var(--cb-secondary-border)] bg-[var(--cb-secondary-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--cb-secondary-text)] xl:inline-flex">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            Private Patient Portal
+          </span>
+        ) : (
+          <span className="hidden items-center gap-1.5 rounded-full border border-[var(--cb-border)] bg-[var(--cb-surface-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--cb-text-muted)] xl:inline-flex">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-[var(--cb-secondary)]"
+            />
+            Sample Clinical Data
+          </span>
+        )}
 
         <ThemeToggle />
 
