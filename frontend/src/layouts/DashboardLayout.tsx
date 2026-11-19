@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { DashboardNavbar, Sidebar } from '@/components/navigation';
-import {
-  ACTIVE_DEMO_ADMIN,
-  ACTIVE_DEMO_DOCTOR,
-  ACTIVE_DEMO_PATIENT,
-} from '@/data';
+import { DoctorPortalProvider } from '@/contexts/DoctorPortalContext';
+import { PatientPortalProvider } from '@/contexts/PatientPortalContext';
+import { ACTIVE_DEMO_ADMIN } from '@/data';
 import { useAuth } from '@/hooks/useAuth';
 import { useDemo } from '@/hooks/useDemo';
+import { useDoctorPortal } from '@/hooks/useDoctorPortal';
+import { usePatientPortal } from '@/hooks/usePatientPortal';
 import { getRoleDisplayName } from '@/types/auth';
+import { formatDoctorDisplayName } from '@/types/doctor';
 import type { UserRole } from '@/types/domain';
 
 export interface DashboardLayoutProps {
@@ -22,15 +23,15 @@ function getFallbackIdentity(role: UserRole): {
 } {
   if (role === 'patient') {
     return {
-      name: ACTIVE_DEMO_PATIENT.fullName,
-      email: ACTIVE_DEMO_PATIENT.email,
+      name: 'Patient',
+      email: '',
       roleLabel: 'Patient',
     };
   }
   if (role === 'doctor') {
     return {
-      name: ACTIVE_DEMO_DOCTOR.fullName,
-      email: ACTIVE_DEMO_DOCTOR.email,
+      name: 'Dr. Clinician',
+      email: '',
       roleLabel: 'Doctor',
     };
   }
@@ -41,17 +42,27 @@ function getFallbackIdentity(role: UserRole): {
   };
 }
 
-export function DashboardLayout({ role }: DashboardLayoutProps) {
+function DashboardShell({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const { getUnreadCount, showToast } = useDemo();
+  const { unreadCount: patientUnreadCount } = usePatientPortal();
+  const { unreadCount: doctorUnreadCount } = useDoctorPortal();
 
   const fallback = getFallbackIdentity(role);
-  const userName = user?.full_name ?? fallback.name;
+  const rawName = user?.full_name ?? fallback.name;
+  const userName =
+    role === 'doctor' ? formatDoctorDisplayName(rawName) : rawName;
   const userEmail = user?.email ?? fallback.email;
   const roleLabel = user ? getRoleDisplayName(user.role) : fallback.roleLabel;
-  const unreadCount = getUnreadCount(role);
+  const unreadCount =
+    role === 'patient'
+      ? patientUnreadCount
+      : role === 'doctor'
+        ? doctorUnreadCount
+        : getUnreadCount(role);
+  const userSubtitle = userEmail ? `${roleLabel} · ${userEmail}` : roleLabel;
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -79,7 +90,7 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
         <DashboardNavbar
           role={role}
           userName={userName}
-          userSubtitle={`${roleLabel} · ${userEmail}`}
+          userSubtitle={userSubtitle}
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onLogout={handleLogout}
         />
@@ -89,5 +100,15 @@ export function DashboardLayout({ role }: DashboardLayoutProps) {
         </main>
       </div>
     </div>
+  );
+}
+
+export function DashboardLayout({ role }: DashboardLayoutProps) {
+  return (
+    <PatientPortalProvider enabled={role === 'patient'}>
+      <DoctorPortalProvider enabled={role === 'doctor'}>
+        <DashboardShell role={role} />
+      </DoctorPortalProvider>
+    </PatientPortalProvider>
   );
 }

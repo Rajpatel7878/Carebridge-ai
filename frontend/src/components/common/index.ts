@@ -25,4 +25,5 @@ export {
   NotificationItem,
   type NotificationItemProps,
 } from './NotificationItem';
+export { Pagination, type PaginationProps } from './Pagination';
 export { ThemeToggle, type ThemeToggleProps } from './ThemeToggle';

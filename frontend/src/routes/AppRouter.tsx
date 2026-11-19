@@ -26,6 +26,7 @@ import { DoctorPatientsPage } from '@/pages/doctor/DoctorPatientsPage';
 import { DoctorProfilePage } from '@/pages/doctor/DoctorProfilePage';
 import { DoctorReferralsPage } from '@/pages/doctor/DoctorReferralsPage';
 import { DoctorReportsPage } from '@/pages/doctor/DoctorReportsPage';
+import { DoctorReportDetailPage } from '@/pages/doctor/DoctorReportDetailPage';
 import { DoctorRiskReviewPage } from '@/pages/doctor/DoctorRiskReviewPage';
 import { DoctorSettingsPage } from '@/pages/doctor/DoctorSettingsPage';
 import { PatientAppointmentsPage } from '@/pages/patient/PatientAppointmentsPage';
@@ -127,6 +128,10 @@ export function AppRouter() {
                 element={<DoctorPatientDetailsPage />}
               />
               <Route path="reports" element={<DoctorReportsPage />} />
+              <Route
+                path="reports/:reportId"
+                element={<DoctorReportDetailPage />}
+              />
               <Route path="risk-review" element={<DoctorRiskReviewPage />} />
               <Route path="referrals" element={<DoctorReferralsPage />} />
               <Route path="appointments" element={<DoctorAppointmentsPage />} />

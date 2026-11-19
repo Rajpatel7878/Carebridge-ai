@@ -15,6 +15,7 @@ logger = logging.getLogger("carebridge.config")
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ROOT_DIR = BACKEND_DIR.parent
 DEFAULT_SQLITE_PATH = BACKEND_DIR / "carebridge_dev.db"
+DEFAULT_UPLOAD_DIR = BACKEND_DIR / "uploads" / "medical_reports"
 
 ALLOWED_JWT_ALGORITHMS = frozenset({"HS256", "HS384", "HS512"})
 INSECURE_SECRET_PLACEHOLDERS = frozenset(
@@ -91,6 +92,10 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_IP_ATTEMPTS: int = Field(default=15, ge=1, le=1000)
     REGISTER_RATE_LIMIT_IP_ATTEMPTS: int = Field(default=10, ge=1, le=1000)
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1, le=3600)
+
+    # Secure private storage for uploaded patient medical reports (never served publicly)
+    UPLOAD_STORAGE_DIR: str = ""
+    MAX_REPORT_UPLOAD_MB: int = Field(default=10, ge=1, le=50)
 
     # AI Integration (reserved for later phases)
     GEMINI_API_KEY: str = Field(default="", repr=False)
@@ -193,6 +198,22 @@ class Settings(BaseSettings):
     def is_postgres_configured(self) -> bool:
         """Return True when DATABASE_URL points to a PostgreSQL instance."""
         return self.database_dialect == "postgresql"
+
+    @property
+    def resolved_upload_dir(self) -> Path:
+        """Return the resolved private directory for patient report uploads."""
+        configured = self.UPLOAD_STORAGE_DIR.strip()
+        if not configured:
+            return DEFAULT_UPLOAD_DIR.resolve()
+        candidate = Path(configured).expanduser()
+        if not candidate.is_absolute():
+            candidate = BACKEND_DIR / candidate
+        return candidate.resolve()
+
+    @property
+    def max_report_upload_bytes(self) -> int:
+        """Return the maximum permitted medical report upload size in bytes."""
+        return self.MAX_REPORT_UPLOAD_MB * 1024 * 1024
 
     @property
     def cors_origins_list(self) -> list[str]:

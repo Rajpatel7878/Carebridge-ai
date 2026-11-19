@@ -24,7 +24,9 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
 
-RUN chown -R appuser:appgroup /app
+RUN mkdir -p /app/uploads/medical_reports \
+    && chmod 700 /app/uploads/medical_reports \
+    && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 8000

@@ -81,11 +81,17 @@ class ForbiddenException(AppException):
 class NotFoundException(AppException):
     """Raised when a requested resource cannot be found."""
 
-    def __init__(self, message: str = "Resource not found.", *, details: Any | None = None) -> None:
+    def __init__(
+        self,
+        message: str = "Resource not found.",
+        *,
+        code: str = "not_found",
+        details: Any | None = None,
+    ) -> None:
         super().__init__(
             message,
             status_code=404,
-            code="not_found",
+            code=code,
             details=details,
         )
 
@@ -103,6 +109,24 @@ class ConflictException(AppException):
         super().__init__(
             message,
             status_code=409,
+            code=code,
+            details=details,
+        )
+
+
+class PayloadTooLargeException(AppException):
+    """Raised when an uploaded payload exceeds the configured size limit."""
+
+    def __init__(
+        self,
+        message: str = "Uploaded file exceeds the maximum allowed size.",
+        *,
+        code: str = "file_too_large",
+        details: Any | None = None,
+    ) -> None:
+        super().__init__(
+            message,
+            status_code=413,
             code=code,
             details=details,
         )

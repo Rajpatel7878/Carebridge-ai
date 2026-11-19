@@ -67,9 +67,13 @@ def create_app() -> FastAPI:
             "Referrer-Policy", "strict-origin-when-cross-origin"
         )
         path = request.url.path
-        if path.startswith(f"{settings.API_PREFIX}/auth") or path.startswith(
-            f"{settings.API_PREFIX}/admin"
-        ):
+        protected_prefixes = (
+            f"{settings.API_PREFIX}/auth",
+            f"{settings.API_PREFIX}/admin",
+            f"{settings.API_PREFIX}/patient",
+            f"{settings.API_PREFIX}/doctor",
+        )
+        if path.startswith(protected_prefixes):
             response.headers.setdefault("Cache-Control", "no-store")
         return response
 

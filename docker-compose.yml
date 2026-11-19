@@ -56,7 +56,11 @@ services:
       LOGIN_RATE_LIMIT_IP_ATTEMPTS: ${LOGIN_RATE_LIMIT_IP_ATTEMPTS:-15}
       REGISTER_RATE_LIMIT_IP_ATTEMPTS: ${REGISTER_RATE_LIMIT_IP_ATTEMPTS:-10}
       RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      UPLOAD_STORAGE_DIR: /app/uploads/medical_reports
+      MAX_REPORT_UPLOAD_MB: ${MAX_REPORT_UPLOAD_MB:-10}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000}
+    volumes:
+      - report_uploads:/app/uploads/medical_reports
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
@@ -99,6 +103,8 @@ services:
 volumes:
   postgres_data:
     name: carebridge_postgres_data
+  report_uploads:
+    name: carebridge_report_uploads
 
 networks:
   carebridge-network:

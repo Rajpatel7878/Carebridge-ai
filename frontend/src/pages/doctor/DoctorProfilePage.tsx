@@ -1,183 +1,388 @@
-import { useState, type FormEvent } from 'react';
-import { LogOut, ShieldCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Badge, Button, Card, CardHeader } from '@/components/common';
-import { DoctorAvailabilityBadge } from '@/components/dashboard';
-import { Input, Select } from '@/components/forms';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2, Lock, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  ErrorState,
+  LoadingState,
+} from '@/components/common';
+import { Input } from '@/components/forms';
 import { PageHeader } from '@/components/navigation';
-import { ACTIVE_DEMO_DOCTOR } from '@/data';
-import { useAuth } from '@/hooks/useAuth';
 import { useDemo } from '@/hooks/useDemo';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { getRoleDisplayName } from '@/types/auth';
-import type { DoctorRecord } from '@/types/domain';
+import { extractApiErrorMessage } from '@/services/api';
+import { fetchDoctorProfile, updateDoctorProfile } from '@/services/doctor';
+import { DOCTOR_VERIFICATION_BADGES, type DoctorProfile } from '@/types/doctor';
 import { formatDate, getInitials } from '@/utils/format';
 
-export function DoctorProfilePage() {
-  useDocumentTitle('Doctor Profile');
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const { showToast } = useDemo();
-  const doctor = ACTIVE_DEMO_DOCTOR;
+interface ProfileFormState {
+  specialization: string;
+  qualification: string;
+  license_number: string;
+  department: string;
+  hospital_or_clinic: string;
+  experience_years: string;
+}
 
-  const displayName = user?.full_name ?? doctor.fullName;
-  const displayEmail = user?.email ?? doctor.email;
-  const displayRole = user ? getRoleDisplayName(user.role) : 'Doctor';
-
-  const [availability, setAvailability] = useState<
-    DoctorRecord['availabilityStatus']
-  >(doctor.availabilityStatus);
-  const [phone, setPhone] = useState(doctor.phone);
-  const [facility, setFacility] = useState(doctor.facility);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    showToast('Clinician preferences saved locally');
+function toFormState(profile: DoctorProfile): ProfileFormState {
+  return {
+    specialization: profile.specialization ?? '',
+    qualification: profile.qualification ?? '',
+    license_number: profile.license_number ?? '',
+    department: profile.department ?? '',
+    hospital_or_clinic: profile.hospital_or_clinic ?? '',
+    experience_years:
+      profile.experience_years !== null ? String(profile.experience_years) : '',
   };
+}
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
+export function DoctorProfilePage() {
+  useDocumentTitle('Clinician Profile');
+  const { showToast } = useDemo();
+
+  const [profile, setProfile] = useState<DoctorProfile | null>(null);
+  const [form, setForm] = useState<ProfileFormState>({
+    specialization: '',
+    qualification: '',
+    license_number: '',
+    department: '',
+    hospital_or_clinic: '',
+    experience_years: '',
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const loadProfile = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      await logout();
-      showToast('Signed out successfully', undefined, 'info');
-      navigate('/login', { replace: true });
+      const data = await fetchDoctorProfile();
+      setProfile(data);
+      setForm(toFormState(data));
+    } catch (err) {
+      setError(
+        extractApiErrorMessage(
+          err,
+          'Unable to load your clinician profile right now.',
+        ),
+      );
     } finally {
-      setIsLoggingOut(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) {
+        void loadProfile();
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [loadProfile]);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (isSaving) return;
+    setFormError(null);
+
+    let parsedYears: number | null = null;
+    if (form.experience_years.trim() !== '') {
+      const numeric = Number(form.experience_years.trim());
+      if (!Number.isInteger(numeric) || numeric < 0 || numeric > 70) {
+        setFormError(
+          'Years of experience must be a whole number between 0 and 70.',
+        );
+        return;
+      }
+      parsedYears = numeric;
+    }
+
+    const trimmedLicense = form.license_number.trim();
+    if (
+      trimmedLicense &&
+      !/^[A-Za-z0-9][A-Za-z0-9\-/.\s]{2,79}$/.test(trimmedLicense)
+    ) {
+      setFormError(
+        'Enter a valid medical license identifier (3–80 letters, numbers, hyphens, or slashes) or leave blank.',
+      );
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updated = await updateDoctorProfile({
+        specialization: form.specialization.trim() || null,
+        qualification: form.qualification.trim() || null,
+        license_number: trimmedLicense || null,
+        department: form.department.trim() || null,
+        hospital_or_clinic: form.hospital_or_clinic.trim() || null,
+        experience_years: parsedYears,
+      });
+      setProfile(updated);
+      setForm(toFormState(updated));
+      showToast(
+        'Clinician profile updated',
+        'Your professional details have been saved.',
+        'success',
+      );
+    } catch (err) {
+      setFormError(
+        extractApiErrorMessage(
+          err,
+          'Could not update your clinician profile right now.',
+        ),
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Clinician Profile"
+          subtitle="Loading your professional clinician credentials..."
+        />
+        <LoadingState rows={5} />
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Clinician Profile"
+          subtitle="Professional identity and clinic affiliation"
+        />
+        <ErrorState
+          title="Could not load clinician profile"
+          message={error ?? 'Unable to load your profile.'}
+          onRetry={() => void loadProfile()}
+        />
+      </div>
+    );
+  }
+
+  const verification = DOCTOR_VERIFICATION_BADGES[profile.verification_status];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Clinician Profile"
-        subtitle="Review your authenticated clinician account, panel metrics, and clinic availability preferences."
+        subtitle="Manage your specialization, qualifications, clinic affiliation, and access-controlled registration details."
+        badge={
+          <Badge variant={verification.variant} dot>
+            {verification.label}
+          </Badge>
+        }
         actions={
           <Button
             variant="outline"
             size="sm"
-            isLoading={isLoggingOut}
-            leftIcon={<LogOut className="h-4 w-4" />}
-            onClick={handleLogout}
+            leftIcon={<RefreshCw className="h-4 w-4" />}
+            onClick={() => void loadProfile()}
+            disabled={isSaving}
           >
-            Sign Out
+            Refresh
           </Button>
         }
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <Card className="lg:col-span-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--cb-primary-soft)] text-lg font-bold text-[var(--cb-primary)]">
-              {getInitials(displayName)}
-            </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Read-only Identity & Admin Verification Card */}
+        <Card className="space-y-4 lg:col-span-1">
+          <div className="flex items-center gap-3.5">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--cb-primary-soft)] text-base font-bold text-[var(--cb-primary)]">
+              {getInitials(profile.display_name)}
+            </span>
             <div className="min-w-0">
-              <h2 className="truncate text-lg font-bold text-[var(--cb-text)]">
-                {displayName}
-              </h2>
-              <p className="truncate text-xs text-[var(--cb-text-muted)]">
-                {displayEmail}
+              <p className="truncate text-base font-semibold text-[var(--cb-text)]">
+                {profile.display_name}
               </p>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge variant="primary" dot>
-                  {displayRole}
-                </Badge>
-                {user?.is_verified && (
-                  <Badge variant="success">
-                    <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-                    Verified
-                  </Badge>
-                )}
-                <DoctorAvailabilityBadge status={availability} />
-              </div>
+              <p className="truncate text-xs text-[var(--cb-text-muted)]">
+                {profile.email}
+              </p>
             </div>
           </div>
 
-          <dl className="mt-6 space-y-3 border-t border-[var(--cb-border)] pt-5 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-[var(--cb-text-muted)]">Account Role</dt>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-[var(--cb-text-secondary)]">
+                Profile Completeness
+              </span>
+              <span className="font-semibold text-[var(--cb-text)] cb-tabular">
+                {profile.completion_percentage}% ({profile.completed_fields}/
+                {profile.total_fields})
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--cb-surface-subtle)]">
+              <div
+                className="h-full rounded-full bg-[var(--cb-primary)] transition-all"
+                style={{ width: `${profile.completion_percentage}%` }}
+              />
+            </div>
+          </div>
+
+          <dl className="divide-y divide-[var(--cb-border)] text-xs sm:text-sm">
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-[var(--cb-text-muted)]">Portal Role</dt>
+              <dd className="font-semibold text-[var(--cb-text)]">
+                {profile.role}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-[var(--cb-text-muted)]">Verification</dt>
+              <dd>
+                <Badge variant={verification.variant}>
+                  {verification.label}
+                </Badge>
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-[var(--cb-text-muted)]">Account Since</dt>
               <dd className="font-medium text-[var(--cb-text)]">
-                {displayRole}
-              </dd>
-            </div>
-            {user?.created_at && (
-              <div className="flex justify-between">
-                <dt className="text-[var(--cb-text-muted)]">Member Since</dt>
-                <dd className="font-medium text-[var(--cb-text)] cb-tabular">
-                  {formatDate(user.created_at)}
-                </dd>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-[var(--cb-border)] pt-3">
-              <dt className="text-[var(--cb-text-muted)]">
-                Specialty (Sample)
-              </dt>
-              <dd className="font-medium text-[var(--cb-text)]">
-                {doctor.specialty}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[var(--cb-text-muted)]">
-                Assigned Panel (Sample)
-              </dt>
-              <dd className="font-medium text-[var(--cb-text)] cb-tabular">
-                {doctor.assignedPatientsCount} patients
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[var(--cb-text-muted)]">
-                Consultation Modes
-              </dt>
-              <dd className="mt-1.5 flex flex-wrap gap-1.5">
-                {doctor.consultationModes.map((mode) => (
-                  <Badge key={mode} variant="teal">
-                    {mode}
-                  </Badge>
-                ))}
+                {formatDate(profile.account_created_at)}
               </dd>
             </div>
           </dl>
+
+          <div className="rounded-xl border border-[var(--cb-border)] bg-[var(--cb-surface-subtle)] p-3 text-xs text-[var(--cb-text-muted)]">
+            <p className="flex items-center gap-1.5 font-semibold text-[var(--cb-text)]">
+              <ShieldCheck
+                className="h-3.5 w-3.5 text-[var(--cb-secondary)]"
+                aria-hidden="true"
+              />
+              Administrator-Governed Verification
+            </p>
+            <p className="mt-1 leading-relaxed">
+              Account role and clinician verification status are verified solely
+              by platform administrators and cannot be modified from this form.
+            </p>
+          </div>
         </Card>
 
-        <Card className="lg:col-span-7">
+        {/* Editable Clinician Details Form */}
+        <Card className="lg:col-span-2">
           <CardHeader
-            title="Clinic & Availability Settings"
-            description="Adjust on-duty status and primary facility contact preferences."
+            title="Professional Credentials & Practice Information"
+            description="Update your authorized clinician profile fields. Sensitive credential numbers remain restricted and are never displayed publicly."
           />
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input label="Clinician Name" value={displayName} disabled />
-              <Input label="Work Email" value={displayEmail} disabled />
-            </div>
-            <Select
-              label="Current Availability Status"
-              value={availability}
-              onChange={(e) =>
-                setAvailability(
-                  e.target.value as DoctorRecord['availabilityStatus'],
-                )
-              }
-              options={[
-                { value: 'available', label: 'Available for Consults' },
-                { value: 'in-clinic', label: 'In Clinic Session' },
-                { value: 'on-call', label: 'On-Call Urgent Only' },
-                { value: 'off-duty', label: 'Off Duty' },
-              ]}
-            />
+
+          <form
+            onSubmit={(event) => void handleSubmit(event)}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
-                label="Primary Facility"
-                value={facility}
-                onChange={(e) => setFacility(e.target.value)}
+                label="Specialization"
+                placeholder="e.g., Internal Medicine"
+                maxLength={120}
+                value={form.specialization}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    specialization: event.target.value,
+                  }))
+                }
               />
               <Input
-                label="Clinic Direct Line"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                label="Qualification"
+                placeholder="e.g., MBBS, MD (General Medicine)"
+                maxLength={160}
+                value={form.qualification}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    qualification: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                label="Department"
+                placeholder="e.g., Preventive & Internal Medicine"
+                maxLength={120}
+                value={form.department}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    department: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                label="Hospital or Clinic"
+                placeholder="e.g., CareBridge Community Health Center"
+                maxLength={160}
+                value={form.hospital_or_clinic}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    hospital_or_clinic: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                label="Years of Experience"
+                type="number"
+                min={0}
+                max={70}
+                placeholder="e.g., 8"
+                value={form.experience_years}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    experience_years: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                label="Medical License Number (Optional · Restricted)"
+                placeholder="e.g., MCI-2019-44821"
+                maxLength={80}
+                value={form.license_number}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    license_number: event.target.value,
+                  }))
+                }
+                helperText="Access-controlled; never shared on public or patient views."
               />
             </div>
-            <div className="flex justify-end pt-2">
-              <Button type="submit">Update Clinician Profile</Button>
+
+            {formError && (
+              <p
+                role="alert"
+                className="text-xs font-medium text-[var(--cb-critical)]"
+              >
+                {formError}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--cb-border)] pt-4">
+              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--cb-text-muted)]">
+                <Lock
+                  className="h-3.5 w-3.5 text-[var(--cb-secondary)]"
+                  aria-hidden="true"
+                />
+                Protected clinician credential storage
+              </span>
+              <Button
+                type="submit"
+                leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                isLoading={isSaving}
+              >
+                Save Profile Changes
+              </Button>
             </div>
           </form>
         </Card>

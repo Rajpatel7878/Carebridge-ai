@@ -166,12 +166,33 @@ def test_alembic_baseline_migration_upgrade_and_downgrade(tmp_path: Path) -> Non
 
     verify_engine = build_engine(db_url)
     try:
+        from sqlalchemy import inspect as sa_inspect
+
+        tables = set(sa_inspect(verify_engine).get_table_names())
+        assert {
+            "alembic_version",
+            "users",
+            "refresh_tokens",
+            "patient_profiles",
+            "medical_reports",
+            "risk_assessments",
+            "appointments",
+            "referrals",
+            "follow_ups",
+            "notifications",
+            "doctor_profiles",
+            "patient_doctor_assignments",
+            "report_reviews",
+            "clinical_reviews",
+            "referral_history",
+        }.issubset(tables)
         with verify_engine.connect() as conn:
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0002_auth_users_and_refresh_tokens"
+        assert version == "0004_doctor_portal_models"
     finally:
         verify_engine.dispose()
 
     command.downgrade(alembic_cfg, "base")
+    command.upgrade(alembic_cfg, "head")
