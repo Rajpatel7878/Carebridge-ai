@@ -1,4 +1,6 @@
-from app.database.session import Base
-from app.models.core import User, AuditLog
+"""Registered SQLAlchemy ORM models for CareBridge AI."""
 
-__all__ = ["Base", "User", "AuditLog"]
+from app.models.refresh_token import RefreshToken
+from app.models.user import User, UserRole
+
+__all__ = ["RefreshToken", "User", "UserRole"]
