@@ -1,0 +1,151 @@
+/* ==========================================================================
+   CareBridge AI — Design System Tokens (Light & Dark Themes)
+   Palette: Deep Medical Blue (#1769AA), Clinical Teal (#14B8A6),
+            Light Neutral (#F7F9FC), Dark Navy (#172B4D)
+   ========================================================================== */
+
+:root {
+  /* Brand Colors */
+  --cb-primary: #1769aa;
+  --cb-primary-hover: #12568b;
+  --cb-primary-active: #0e4470;
+  --cb-primary-soft: #ebf4fb;
+  --cb-primary-border: #bfdcf4;
+  --cb-primary-contrast: #ffffff;
+
+  --cb-secondary: #14b8a6;
+  --cb-secondary-hover: #0d9488;
+  --cb-secondary-soft: #e6faf7;
+  --cb-secondary-border: #99f6e4;
+  --cb-secondary-text: #0f766e;
+
+  /* Surfaces & Neutrals */
+  --cb-bg: #f7f9fc;
+  --cb-surface: #ffffff;
+  --cb-surface-subtle: #f1f5f9;
+  --cb-surface-hover: #f8fafc;
+  --cb-surface-elevated: #ffffff;
+
+  /* Borders */
+  --cb-border: #e2e8f0;
+  --cb-border-subtle: #edf2f7;
+  --cb-border-strong: #cbd5e1;
+
+  /* Typography Colors */
+  --cb-text: #172b4d;
+  --cb-text-secondary: #42526e;
+  --cb-text-muted: #64748b;
+  --cb-text-inverse: #ffffff;
+
+  /* Semantic Status Colors */
+  --cb-success: #15803d;
+  --cb-success-soft: #ecfdf5;
+  --cb-success-border: #bbf7d0;
+
+  --cb-warning: #b45309;
+  --cb-warning-soft: #fffbeb;
+  --cb-warning-border: #fde68a;
+
+  --cb-critical: #dc2626;
+  --cb-critical-soft: #fef2f2;
+  --cb-critical-border: #fecaca;
+
+  /* Focus Ring */
+  --cb-ring: rgba(23, 105, 170, 0.3);
+
+  /* Typography Scale & Families */
+  --cb-font-sans:
+    'Inter Variable', 'Inter', 'Noto Sans Devanagari', 'Kohinoor Devanagari',
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
+  --cb-text-xs: 0.75rem;
+  --cb-text-sm: 0.875rem;
+  --cb-text-base: 1rem;
+  --cb-text-lg: 1.125rem;
+  --cb-text-xl: 1.25rem;
+  --cb-text-2xl: 1.5rem;
+  --cb-text-3xl: 1.875rem;
+
+  /* Spacing Rhythm */
+  --cb-space-card: 1.5rem;
+  --cb-space-section: 1.75rem;
+  --cb-sidebar-width: 16.25rem;
+  --cb-header-height: 4rem;
+
+  /* Radii */
+  --cb-radius-sm: 0.375rem;
+  --cb-radius-md: 0.5rem;
+  --cb-radius-lg: 0.75rem;
+  --cb-radius-xl: 1rem;
+  --cb-radius-full: 9999px;
+
+  /* Elevation Shadows */
+  --cb-shadow-xs: 0 1px 2px 0 rgba(23, 43, 77, 0.04);
+  --cb-shadow-sm:
+    0 1px 3px 0 rgba(23, 43, 77, 0.06), 0 1px 2px -1px rgba(23, 43, 77, 0.04);
+  --cb-shadow-md:
+    0 6px 16px -4px rgba(23, 43, 77, 0.08),
+    0 2px 6px -2px rgba(23, 43, 77, 0.04);
+  --cb-shadow-lg:
+    0 16px 36px -8px rgba(23, 43, 77, 0.14),
+    0 4px 12px -4px rgba(23, 43, 77, 0.06);
+}
+
+.dark {
+  /* Brand Colors */
+  --cb-primary: #3b9ae1;
+  --cb-primary-hover: #56aceb;
+  --cb-primary-active: #2784cc;
+  --cb-primary-soft: rgba(59, 154, 225, 0.14);
+  --cb-primary-border: rgba(59, 154, 225, 0.3);
+  --cb-primary-contrast: #08121e;
+
+  --cb-secondary: #2dd4bf;
+  --cb-secondary-hover: #5eead4;
+  --cb-secondary-soft: rgba(45, 212, 191, 0.13);
+  --cb-secondary-border: rgba(45, 212, 191, 0.28);
+  --cb-secondary-text: #2dd4bf;
+
+  /* Surfaces & Neutrals */
+  --cb-bg: #0b1220;
+  --cb-surface: #111b2e;
+  --cb-surface-subtle: #16233b;
+  --cb-surface-hover: #192842;
+  --cb-surface-elevated: #152238;
+
+  /* Borders */
+  --cb-border: #1f2f4a;
+  --cb-border-subtle: #18263d;
+  --cb-border-strong: #2d4366;
+
+  /* Typography Colors */
+  --cb-text: #f1f5f9;
+  --cb-text-secondary: #cbd5e1;
+  --cb-text-muted: #94a3b8;
+  --cb-text-inverse: #0b1220;
+
+  /* Semantic Status Colors */
+  --cb-success: #4ade80;
+  --cb-success-soft: rgba(34, 197, 94, 0.14);
+  --cb-success-border: rgba(74, 222, 128, 0.28);
+
+  --cb-warning: #fbbf24;
+  --cb-warning-soft: rgba(245, 158, 11, 0.14);
+  --cb-warning-border: rgba(251, 191, 36, 0.28);
+
+  --cb-critical: #f87171;
+  --cb-critical-soft: rgba(239, 68, 68, 0.14);
+  --cb-critical-border: rgba(248, 113, 113, 0.3);
+
+  /* Focus Ring */
+  --cb-ring: rgba(59, 154, 225, 0.38);
+
+  /* Elevation Shadows */
+  --cb-shadow-xs: 0 1px 2px 0 rgba(2, 6, 23, 0.3);
+  --cb-shadow-sm:
+    0 1px 3px 0 rgba(2, 6, 23, 0.42), 0 1px 2px -1px rgba(2, 6, 23, 0.32);
+  --cb-shadow-md:
+    0 8px 20px -4px rgba(2, 6, 23, 0.55), 0 2px 6px -2px rgba(2, 6, 23, 0.38);
+  --cb-shadow-lg:
+    0 20px 42px -10px rgba(2, 6, 23, 0.7), 0 6px 14px -4px rgba(2, 6, 23, 0.45);
+}

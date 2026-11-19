@@ -1,0 +1,7 @@
+CareBridge AI — Alembic Database Migrations
+
+Single-database configuration supporting PostgreSQL (primary) and SQLite
+(local development fallback). Run from the `backend/` directory:
+
+    alembic upgrade head
+    alembic revision --autogenerate -m "describe change"

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none" role="img" aria-label="CareBridge AI — Connecting Every Patient to the Care They Need">
+  <defs>
+    <linearGradient id="og-bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E2A47" />
+      <stop offset="0.55" stop-color="#134E80" />
+      <stop offset="1" stop-color="#0F6B7A" />
+    </linearGradient>
+    <linearGradient id="og-accent" x1="120" y1="450" x2="1080" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8" />
+      <stop offset="0.5" stop-color="#2DD4BF" />
+      <stop offset="1" stop-color="#99F6E4" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#og-bg)" />
+  <circle cx="1040" cy="120" r="240" fill="#2DD4BF" fill-opacity="0.1" />
+  <circle cx="160" cy="560" r="220" fill="#38BDF8" fill-opacity="0.1" />
+  <rect x="64" y="64" width="1072" height="502" rx="28" fill="#FFFFFF" fill-opacity="0.05" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="1.5" />
+
+  <!-- CareBridge AI Emblem -->
+  <g transform="translate(112, 112)">
+    <rect width="72" height="72" rx="18" fill="#FFFFFF" fill-opacity="0.14" stroke="#99F6E4" stroke-opacity="0.35" />
+    <path d="M36 16V34M27 25H45" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" />
+    <path d="M16 49C21.5 37.8 28.2 33.5 36 33.5C43.8 33.5 50.5 37.8 56 49" stroke="#2DD4BF" stroke-width="5" stroke-linecap="round" />
+    <circle cx="16" cy="49" r="4.2" fill="#FFFFFF" />
+    <circle cx="56" cy="49" r="4.2" fill="#FFFFFF" />
+  </g>
+
+  <text x="204" y="146" fill="#FFFFFF" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="34" font-weight="700">
+    CareBridge <tspan fill="#5EEAD4">AI</tspan>
+  </text>
+  <text x="204" y="174" fill="#CBD5E1" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="16" font-weight="500" letter-spacing="1.4">
+    POPULATION HEALTH · TEAM ALPHA · FUTURE HEALTH CHALLENGE
+  </text>
+
+  <text x="112" y="276" fill="#FFFFFF" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="54" font-weight="700">
+    Connecting Every Patient
+  </text>
+  <text x="112" y="342" fill="#FFFFFF" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="54" font-weight="700">
+    to the Care They Need.
+  </text>
+
+  <text x="112" y="402" fill="#E2E8F0" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="23" font-weight="400">
+    From health screening to timely care — one intelligent healthcare connection.
+  </text>
+
+  <!-- Six-step continuum line -->
+  <line x1="128" y1="478" x2="1056" y2="478" stroke="url(#og-accent)" stroke-width="3" stroke-dasharray="6 6" />
+  <g font-family="Inter, system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" fill="#F1F5F9">
+    <circle cx="128" cy="478" r="8" fill="#5EEAD4" />
+    <text x="112" y="514">Screening</text>
+    <circle cx="310" cy="478" r="8" fill="#5EEAD4" />
+    <text x="272" y="514">Report Review</text>
+    <circle cx="502" cy="478" r="8" fill="#5EEAD4" />
+    <text x="456" y="514">Risk Priority</text>
+    <circle cx="692" cy="478" r="8" fill="#5EEAD4" />
+    <text x="646" y="514">Doctor Care</text>
+    <circle cx="878" cy="478" r="8" fill="#5EEAD4" />
+    <text x="850" y="514">Referral</text>
+    <circle cx="1056" cy="478" r="8" fill="#FFFFFF" />
+    <text x="1018" y="514">Follow-up</text>
+  </g>
+</svg>
