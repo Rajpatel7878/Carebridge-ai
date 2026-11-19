@@ -1,5 +1,9 @@
 export { ActivityFeed, type ActivityFeedProps } from './ActivityFeed';
 export {
+  CareAssignmentsPanel,
+  type CareAssignmentsPanelProps,
+} from './CareAssignmentsPanel';
+export {
   DataTable,
   type DataTableColumn,
   type DataTableProps,

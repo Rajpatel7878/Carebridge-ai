@@ -610,6 +610,17 @@ export function PatientAppointmentsPage() {
               </div>
             </dl>
 
+            {detailAppt.status_note && (
+              <div className="rounded-xl border border-[var(--cb-primary)]/30 bg-[var(--cb-primary-soft)]/45 p-3.5">
+                <p className="text-xs font-semibold text-[var(--cb-primary)] uppercase">
+                  Care Team Scheduling Update
+                </p>
+                <p className="mt-1 text-sm text-[var(--cb-text)]">
+                  {detailAppt.status_note}
+                </p>
+              </div>
+            )}
+
             {detailAppt.notes && (
               <div className="rounded-xl border border-[var(--cb-border)] p-3.5">
                 <p className="text-xs font-semibold text-[var(--cb-text-muted)] uppercase">

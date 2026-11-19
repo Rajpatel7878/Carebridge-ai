@@ -5,9 +5,10 @@ from enum import StrEnum
 import uuid
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin
+from app.models.user import User
 
 
 class FollowUpStatus(StrEnum):
@@ -33,6 +34,7 @@ class FollowUp(Base, TimestampMixin):
             name="non_empty_follow_up_type",
         ),
         Index("ix_follow_ups_patient_id", "patient_id"),
+        Index("ix_follow_ups_created_by_doctor_id", "created_by_doctor_id"),
         Index("ix_follow_ups_patient_scheduled", "patient_id", "scheduled_at"),
     )
 
@@ -45,6 +47,12 @@ class FollowUp(Base, TimestampMixin):
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    created_by_doctor_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
     )
     related_appointment_id: Mapped[str | None] = mapped_column(
         String(36),
@@ -73,4 +81,11 @@ class FollowUp(Base, TimestampMixin):
         String(400),
         nullable=True,
         default=None,
+    )
+
+    patient: Mapped[User] = relationship(
+        "User", foreign_keys=[patient_id], lazy="joined"
+    )
+    created_by_doctor: Mapped[User | None] = relationship(
+        "User", foreign_keys=[created_by_doctor_id], lazy="joined"
     )

@@ -24,7 +24,11 @@ from app.models.medical_report import (
 from app.models.notification import NotificationType
 from app.models.patient_profile import GenderOption, PreferredLanguage
 from app.models.referral import ReferralStatus
-from app.models.risk_assessment import RiskAssessmentStatus, RiskCategory
+from app.models.risk_assessment import (
+    RiskAssessmentSource,
+    RiskAssessmentStatus,
+    RiskCategory,
+)
 
 _PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()\-]{5,24}$")
 _SAFE_LOCATION_MODES: frozenset[str] = frozenset(
@@ -174,6 +178,7 @@ class RiskAssessmentResponse(BaseModel):
     related_report_id: str | None
     status: RiskAssessmentStatus
     risk_category: RiskCategory | None
+    source: RiskAssessmentSource | None = None
     explanation: str | None
     reviewing_professional_name: str | None
     recommended_action: str | None
@@ -249,6 +254,7 @@ class AppointmentResponse(BaseModel):
     status: AppointmentStatus
     location_or_mode: str | None
     notes: str | None
+    status_note: str | None = None
     assigned_doctor_name: str | None
     is_upcoming: bool
     created_at: datetime

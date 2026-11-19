@@ -26,11 +26,12 @@ class ReportUploadStatus(StrEnum):
 
 
 class ReportReviewStatus(StrEnum):
-    """Clinical review coordination state (no AI extraction in Phase 5)."""
+    """Clinical review coordination state (no AI extraction in Phases 5–6)."""
 
     PENDING_REVIEW = "PENDING_REVIEW"
     IN_REVIEW = "IN_REVIEW"
     REVIEWED = "REVIEWED"
+    NEEDS_FOLLOW_UP = "NEEDS_FOLLOW_UP"
 
 
 class MedicalReport(Base):
@@ -55,7 +56,7 @@ class MedicalReport(Base):
             name="valid_upload_status",
         ),
         CheckConstraint(
-            "review_status IN ('PENDING_REVIEW', 'IN_REVIEW', 'REVIEWED')",
+            "review_status IN ('PENDING_REVIEW', 'IN_REVIEW', 'REVIEWED', 'NEEDS_FOLLOW_UP')",
             name="valid_review_status",
         ),
         Index("ix_medical_reports_patient_id", "patient_id"),

@@ -27,12 +27,20 @@ class RiskAssessmentStatus(StrEnum):
 
 
 class RiskCategory(StrEnum):
-    """High-level care-coordination risk categories (never auto-generated in Phase 5)."""
+    """High-level care-coordination risk categories (never auto-generated in Phases 5–6)."""
 
     LOW = "LOW"
     MODERATE = "MODERATE"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
+
+class RiskAssessmentSource(StrEnum):
+    """Origin identifier keeping automated outputs distinct from clinician review."""
+
+    SCREENING_INTAKE = "SCREENING_INTAKE"
+    CLINICAL_REVIEW = "CLINICAL_REVIEW"
+    AI_ASSISTED = "AI_ASSISTED"
 
 
 class RiskAssessment(Base, TimestampMixin):
@@ -47,6 +55,10 @@ class RiskAssessment(Base, TimestampMixin):
         CheckConstraint(
             "risk_category IS NULL OR risk_category IN ('LOW', 'MODERATE', 'HIGH', 'CRITICAL')",
             name="valid_risk_category",
+        ),
+        CheckConstraint(
+            "source IS NULL OR source IN ('SCREENING_INTAKE', 'CLINICAL_REVIEW', 'AI_ASSISTED')",
+            name="valid_risk_source",
         ),
         Index("ix_risk_assessments_patient_id", "patient_id"),
         Index("ix_risk_assessments_patient_assessed", "patient_id", "assessed_at"),
@@ -82,6 +94,11 @@ class RiskAssessment(Base, TimestampMixin):
     )
     risk_category: Mapped[str | None] = mapped_column(
         String(24),
+        nullable=True,
+        default=None,
+    )
+    source: Mapped[str | None] = mapped_column(
+        String(40),
         nullable=True,
         default=None,
     )

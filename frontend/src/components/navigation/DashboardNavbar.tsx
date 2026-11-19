@@ -5,14 +5,17 @@ import {
   Menu,
   Settings,
   ShieldCheck,
+  Stethoscope,
   User,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Dropdown, type DropdownMenuItem } from '@/components/common/Dropdown';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useDemo } from '@/hooks/useDemo';
+import { useDoctorPortal } from '@/hooks/useDoctorPortal';
 import { usePatientPortal } from '@/hooks/usePatientPortal';
 import { ROLE_PORTALS, resolveBreadcrumbs } from '@/routes/navigation';
+import { DOCTOR_NOTIFICATION_ROUTE_MAP } from '@/types/doctor';
 import type { UserRole } from '@/types/domain';
 import { NOTIFICATION_ROUTE_MAP } from '@/types/patient';
 import { formatDateTime, getInitials } from '@/utils/format';
@@ -40,12 +43,22 @@ export function DashboardNavbar({
     unreadCount: patientUnreadCount,
     markOneRead: markPatientRead,
   } = usePatientPortal();
+  const {
+    notifications: doctorNotifications,
+    unreadCount: doctorUnreadCount,
+    markOneRead: markDoctorRead,
+  } = useDoctorPortal();
 
   const portal = ROLE_PORTALS[role];
   const breadcrumbs = resolveBreadcrumbs(role, pathname);
 
   const isPatient = role === 'patient';
-  const unreadCount = isPatient ? patientUnreadCount : getUnreadCount(role);
+  const isDoctor = role === 'doctor';
+  const unreadCount = isPatient
+    ? patientUnreadCount
+    : isDoctor
+      ? doctorUnreadCount
+      : getUnreadCount(role);
 
   const notificationItems: DropdownMenuItem[] = isPatient
     ? patientNotifications.length > 0
@@ -68,15 +81,37 @@ export function DashboardNavbar({
             to: portal.notificationsPath,
           },
         ]
-    : getRoleNotifications(role)
-        .slice(0, 3)
-        .map((item) => ({
-          id: item.id,
-          label: item.title,
-          description: item.timestamp,
-          to: item.actionPath,
-          onSelect: () => markNotificationRead(item.id),
-        }));
+    : isDoctor
+      ? doctorNotifications.length > 0
+        ? doctorNotifications.slice(0, 4).map((item) => ({
+            id: item.id,
+            label: item.is_read ? item.title : `• ${item.title}`,
+            description: formatDateTime(item.created_at),
+            to: DOCTOR_NOTIFICATION_ROUTE_MAP[item.notification_type],
+            onSelect: () => {
+              if (!item.is_read) {
+                void markDoctorRead(item.id);
+              }
+            },
+          }))
+        : [
+            {
+              id: 'empty-doctor-notifications',
+              label: 'No clinical alerts yet',
+              description:
+                'Assignments, reports, and visit requests appear here.',
+              to: portal.notificationsPath,
+            },
+          ]
+      : getRoleNotifications(role)
+          .slice(0, 3)
+          .map((item) => ({
+            id: item.id,
+            label: item.title,
+            description: item.timestamp,
+            to: item.actionPath,
+            onSelect: () => markNotificationRead(item.id),
+          }));
 
   if (role !== 'admin') {
     notificationItems.push({
@@ -174,6 +209,11 @@ export function DashboardNavbar({
           <span className="hidden items-center gap-1.5 rounded-full border border-[var(--cb-secondary-border)] bg-[var(--cb-secondary-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--cb-secondary-text)] xl:inline-flex">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
             Private Patient Portal
+          </span>
+        ) : isDoctor ? (
+          <span className="hidden items-center gap-1.5 rounded-full border border-[var(--cb-primary)]/25 bg-[var(--cb-primary-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--cb-primary)] xl:inline-flex">
+            <Stethoscope className="h-3.5 w-3.5" aria-hidden="true" />
+            Authorized Clinician Portal
           </span>
         ) : (
           <span className="hidden items-center gap-1.5 rounded-full border border-[var(--cb-border)] bg-[var(--cb-surface-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--cb-text-muted)] xl:inline-flex">

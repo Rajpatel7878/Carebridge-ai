@@ -60,6 +60,7 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All Review Statuses' },
   { value: 'PENDING_REVIEW', label: 'Pending Review' },
   { value: 'IN_REVIEW', label: 'In Review' },
+  { value: 'NEEDS_FOLLOW_UP', label: 'Needs Follow-up' },
   { value: 'REVIEWED', label: 'Reviewed' },
 ];
 

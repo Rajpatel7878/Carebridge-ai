@@ -180,12 +180,17 @@ def test_alembic_baseline_migration_upgrade_and_downgrade(tmp_path: Path) -> Non
             "referrals",
             "follow_ups",
             "notifications",
+            "doctor_profiles",
+            "patient_doctor_assignments",
+            "report_reviews",
+            "clinical_reviews",
+            "referral_history",
         }.issubset(tables)
         with verify_engine.connect() as conn:
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0003_patient_portal_models"
+        assert version == "0004_doctor_portal_models"
     finally:
         verify_engine.dispose()
 

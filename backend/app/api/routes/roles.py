@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps.auth import AdminUser, DoctorUser, PatientUser
 from app.database.session import get_db
+from app.models.patient_doctor_assignment import AssignmentStatus
 from app.models.user import UserRole
 from app.schemas.auth import (
     AdminCreateUserRequest,
@@ -15,11 +16,22 @@ from app.schemas.auth import (
     RoleWorkspaceResponse,
     UserPublic,
 )
+from app.schemas.doctor import (
+    AssignmentCreateRequest,
+    AssignmentListResponse,
+    AssignmentResponse,
+    AssignmentUpdateRequest,
+)
 from app.services.auth_service import (
     create_user_by_admin,
     get_user_by_id,
     list_users_for_admin,
     update_user_by_admin,
+)
+from app.services.doctor import (
+    create_assignment_by_admin,
+    list_assignments_for_admin,
+    update_assignment_by_admin,
 )
 
 router = APIRouter(tags=["Role Access & Administration"])
@@ -140,3 +152,65 @@ def admin_update_user(
     """Approve doctor requests, change user roles, or activate/deactivate accounts."""
     updated = update_user_by_admin(db, admin=admin, user_id=user_id, payload=payload)
     return UserPublic.model_validate(updated)
+
+
+@router.get(
+    "/admin/assignments",
+    response_model=AssignmentListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List patient-doctor care assignments (ADMIN only)",
+)
+def admin_list_assignments(
+    _admin: AdminUser,
+    db: Annotated[Session, Depends(get_db)],
+    doctor_id: str | None = Query(default=None, max_length=36),
+    patient_id: str | None = Query(default=None, max_length=36),
+    status_filter: AssignmentStatus | None = Query(default=None, alias="status"),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> AssignmentListResponse:
+    """Return authorized patient-doctor care assignments for governance."""
+    return list_assignments_for_admin(
+        db,
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        status_filter=status_filter,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post(
+    "/admin/assignments",
+    response_model=AssignmentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a patient-doctor care assignment (ADMIN only)",
+)
+def admin_create_assignment(
+    payload: AssignmentCreateRequest,
+    admin: AdminUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> AssignmentResponse:
+    """Assign an active PATIENT to an active DOCTOR under admin authorization."""
+    return create_assignment_by_admin(db, admin=admin, payload=payload)
+
+
+@router.patch(
+    "/admin/assignments/{assignment_id}",
+    response_model=AssignmentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Revoke or reassign a patient-doctor care assignment (ADMIN only)",
+)
+def admin_update_assignment(
+    assignment_id: str,
+    payload: AssignmentUpdateRequest,
+    admin: AdminUser,
+    db: Annotated[Session, Depends(get_db)],
+) -> AssignmentResponse:
+    """Revoke an active assignment or reassign the patient to another DOCTOR."""
+    return update_assignment_by_admin(
+        db,
+        admin=admin,
+        assignment_id=assignment_id,
+        payload=payload,
+    )

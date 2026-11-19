@@ -85,7 +85,15 @@ class Appointment(Base, TimestampMixin):
         nullable=True,
         default=None,
     )
+    status_note: Mapped[str | None] = mapped_column(
+        String(400),
+        nullable=True,
+        default=None,
+    )
 
+    patient: Mapped[User] = relationship(
+        "User", foreign_keys=[patient_id], lazy="joined"
+    )
     doctor: Mapped[User | None] = relationship(
         "User", foreign_keys=[doctor_id], lazy="joined"
     )

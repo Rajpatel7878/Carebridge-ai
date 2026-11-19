@@ -29,6 +29,7 @@ from app.core.security import (
     verify_dummy_password,
     verify_password,
 )
+from app.models.doctor_profile import DoctorProfile, DoctorVerificationStatus
 from app.models.refresh_token import RefreshToken
 from app.models.user import User, UserRole
 from app.schemas.auth import (
@@ -461,6 +462,18 @@ def create_user_by_admin(
     )
     db.add(user)
     try:
+        db.flush()
+        if user.role == UserRole.DOCTOR.value:
+            db.add(
+                DoctorProfile(
+                    user_id=user.id,
+                    verification_status=(
+                        DoctorVerificationStatus.VERIFIED.value
+                        if user.is_verified
+                        else DoctorVerificationStatus.PENDING.value
+                    ),
+                )
+            )
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -521,6 +534,26 @@ def update_user_by_admin(
 
     if payload.clear_requested_role:
         target.requested_role = None
+
+    if target.role == UserRole.DOCTOR.value:
+        doctor_profile = db.scalar(
+            select(DoctorProfile).where(DoctorProfile.user_id == target.id)
+        )
+        new_verification = (
+            DoctorVerificationStatus.VERIFIED.value
+            if target.is_verified
+            else DoctorVerificationStatus.PENDING.value
+        )
+        if doctor_profile is None:
+            db.add(
+                DoctorProfile(
+                    user_id=target.id,
+                    verification_status=new_verification,
+                )
+            )
+        else:
+            doctor_profile.verification_status = new_verification
+            doctor_profile.updated_at = datetime.now(UTC)
 
     if invalidate_sessions:
         revoke_all_user_sessions(db, target)

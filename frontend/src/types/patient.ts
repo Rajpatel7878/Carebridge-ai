@@ -7,7 +7,8 @@ export type PatientGender =
 
 export type ReportFileType = 'PDF' | 'PNG' | 'JPG';
 export type ReportUploadStatus = 'UPLOADED' | 'FAILED';
-export type ReportReviewStatus = 'PENDING_REVIEW' | 'IN_REVIEW' | 'REVIEWED';
+export type ReportReviewStatus =
+  'PENDING_REVIEW' | 'IN_REVIEW' | 'REVIEWED' | 'NEEDS_FOLLOW_UP';
 
 export type RiskAssessmentStatus = 'PENDING' | 'REVIEWED' | 'ARCHIVED';
 export type RiskCategoryCode = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
@@ -91,6 +92,7 @@ export interface PatientRiskAssessment {
   related_report_id: string | null;
   status: RiskAssessmentStatus;
   risk_category: RiskCategoryCode | null;
+  source?: 'SCREENING_INTAKE' | 'CLINICAL_REVIEW' | 'AI_ASSISTED' | null;
   explanation: string | null;
   reviewing_professional_name: string | null;
   recommended_action: string | null;
@@ -111,6 +113,7 @@ export interface PatientAppointment {
   status: AppointmentStatusCode;
   location_or_mode: string | null;
   notes: string | null;
+  status_note?: string | null;
   assigned_doctor_name: string | null;
   is_upcoming: boolean;
   created_at: string;
@@ -264,6 +267,7 @@ export const REPORT_REVIEW_BADGES: Record<
   PENDING_REVIEW: { label: 'Pending Review', variant: 'warning' },
   IN_REVIEW: { label: 'In Review', variant: 'primary' },
   REVIEWED: { label: 'Reviewed', variant: 'success' },
+  NEEDS_FOLLOW_UP: { label: 'Needs Follow-up', variant: 'critical' },
 };
 
 export const APPOINTMENT_STATUS_BADGES: Record<

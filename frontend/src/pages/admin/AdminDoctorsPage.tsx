@@ -13,6 +13,7 @@ import {
   Modal,
 } from '@/components/common';
 import {
+  CareAssignmentsPanel,
   DataTable,
   DoctorAvailabilityBadge,
   type DataTableColumn,
@@ -467,6 +468,8 @@ export function AdminDoctorsPage() {
           />
         )}
       </Card>
+
+      <CareAssignmentsPanel accounts={accounts} />
 
       <div className="space-y-4">
         <div>

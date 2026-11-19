@@ -14,7 +14,6 @@ import {
   ShieldAlert,
   Stethoscope,
   User,
-  UserCheck,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -113,13 +112,6 @@ export const DOCTOR_NAV_ITEMS: NavItemConfig[] = [
     path: '/doctor/patients',
     icon: Users,
     section: 'clinical',
-    exact: true,
-  },
-  {
-    label: 'Patient Details',
-    path: '/doctor/patient-details',
-    icon: UserCheck,
-    section: 'clinical',
     matchPrefix: '/doctor/patients/',
   },
   {
@@ -127,6 +119,7 @@ export const DOCTOR_NAV_ITEMS: NavItemConfig[] = [
     path: '/doctor/reports',
     icon: FileText,
     section: 'clinical',
+    matchPrefix: '/doctor/reports/',
   },
   {
     label: 'Risk Review',
@@ -135,15 +128,15 @@ export const DOCTOR_NAV_ITEMS: NavItemConfig[] = [
     section: 'clinical',
   },
   {
-    label: 'Referrals',
-    path: '/doctor/referrals',
-    icon: GitBranch,
-    section: 'clinical',
-  },
-  {
     label: 'Appointments',
     path: '/doctor/appointments',
     icon: Calendar,
+    section: 'clinical',
+  },
+  {
+    label: 'Referrals',
+    path: '/doctor/referrals',
+    icon: GitBranch,
     section: 'clinical',
   },
   {
@@ -284,12 +277,19 @@ export function resolveBreadcrumbs(
     { label: portal.portalLabel, path: portal.basePath },
   ];
 
-  if (role === 'doctor' && normalized.startsWith('/doctor/patients/')) {
-    const patientId = normalized.split('/')[3];
+  if (
+    role === 'doctor' &&
+    (normalized.startsWith('/doctor/patients/') ||
+      normalized === '/doctor/patient-details')
+  ) {
     crumbs.push({ label: 'My Patients', path: '/doctor/patients' });
-    crumbs.push({
-      label: patientId ? `Patient ${patientId}` : 'Patient Details',
-    });
+    crumbs.push({ label: 'Patient Details' });
+    return crumbs;
+  }
+
+  if (role === 'doctor' && normalized.startsWith('/doctor/reports/')) {
+    crumbs.push({ label: 'Medical Reports', path: '/doctor/reports' });
+    crumbs.push({ label: 'Report Review' });
     return crumbs;
   }
 

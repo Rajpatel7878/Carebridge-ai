@@ -29,7 +29,12 @@ from app.models.medical_report import (
 from app.models.notification import Notification, NotificationType
 from app.models.patient_profile import GenderOption, PatientProfile, PreferredLanguage
 from app.models.referral import Referral, ReferralStatus
-from app.models.risk_assessment import RiskAssessment, RiskAssessmentStatus, RiskCategory
+from app.models.risk_assessment import (
+    RiskAssessment,
+    RiskAssessmentSource,
+    RiskAssessmentStatus,
+    RiskCategory,
+)
 from app.models.user import User
 from app.schemas.patient import (
     RISK_COORDINATION_DISCLAIMER,
@@ -60,6 +65,7 @@ from app.services.file_storage import (
     read_and_store_report_file,
     resolve_existing_report_path,
 )
+from app.services.notifications import notify_assigned_doctors_for_patient
 
 _APPOINTMENT_TYPE_LABELS: dict[str, str] = {
     AppointmentType.SCREENING_REVIEW.value: "Screening Review",
@@ -261,6 +267,16 @@ async def upload_patient_report(
         ),
         notification_type=NotificationType.REPORT,
     )
+    notify_assigned_doctors_for_patient(
+        db,
+        patient_id=patient.id,
+        title="New patient report submitted",
+        message=(
+            f"{patient.full_name} uploaded a new {stored.file_type.value} medical "
+            "report awaiting clinical review."
+        ),
+        notification_type=NotificationType.REPORT,
+    )
     try:
         db.commit()
         db.refresh(report)
@@ -369,6 +385,9 @@ def list_patient_risk_assessments(
             risk_category=(
                 RiskCategory(item.risk_category) if item.risk_category else None
             ),
+            source=(
+                RiskAssessmentSource(item.source) if item.source else None
+            ),
             explanation=item.explanation,
             reviewing_professional_name=(
                 item.reviewing_doctor.full_name
@@ -410,6 +429,7 @@ def _to_appointment_response(
         status=AppointmentStatus(appt.status),
         location_or_mode=appt.location_or_mode,
         notes=appt.notes,
+        status_note=appt.status_note,
         assigned_doctor_name=appt.doctor.full_name if appt.doctor is not None else None,
         is_upcoming=_is_upcoming_appointment(appt, now),
         created_at=_as_utc(appt.created_at),
@@ -501,6 +521,16 @@ def request_patient_appointment(
         ),
         notification_type=NotificationType.APPOINTMENT,
     )
+    notify_assigned_doctors_for_patient(
+        db,
+        patient_id=patient.id,
+        title="New appointment request",
+        message=(
+            f"{patient.full_name} submitted a {friendly_type} request for "
+            f"{formatted_slot}."
+        ),
+        notification_type=NotificationType.APPOINTMENT,
+    )
     db.commit()
     db.refresh(appt)
     return _to_appointment_response(appt, now=datetime.now(timezone.utc))
@@ -535,6 +565,18 @@ def cancel_patient_appointment(
             "request has been cancelled."
         ),
         notification_type=NotificationType.APPOINTMENT,
+    )
+    notify_assigned_doctors_for_patient(
+        db,
+        patient_id=patient.id,
+        title="Patient cancelled appointment",
+        message=(
+            f"{patient.full_name} cancelled a "
+            f"{_humanize_appointment_type(appt.appointment_type)} scheduled for "
+            f"{_as_utc(appt.scheduled_at).strftime('%b %d, %Y at %H:%M UTC')}."
+        ),
+        notification_type=NotificationType.APPOINTMENT,
+        specific_doctor_id=appt.doctor_id,
     )
     db.commit()
     db.refresh(appt)
@@ -714,6 +756,14 @@ def complete_patient_follow_up(
         title="Follow-up marked completed",
         message=f"You marked '{record.follow_up_type}' as completed.",
         notification_type=NotificationType.FOLLOW_UP,
+    )
+    notify_assigned_doctors_for_patient(
+        db,
+        patient_id=patient.id,
+        title="Patient follow-up completed",
+        message=f"{patient.full_name} marked a scheduled follow-up task as completed.",
+        notification_type=NotificationType.FOLLOW_UP,
+        specific_doctor_id=record.created_by_doctor_id,
     )
     db.commit()
     db.refresh(record)
@@ -997,6 +1047,7 @@ def get_patient_overview(db: Session, *, patient: User) -> PatientOverviewRespon
         in {
             ReportReviewStatus.PENDING_REVIEW.value,
             ReportReviewStatus.IN_REVIEW.value,
+            ReportReviewStatus.NEEDS_FOLLOW_UP.value,
         }
     )
     upcoming_appointments = sum(
