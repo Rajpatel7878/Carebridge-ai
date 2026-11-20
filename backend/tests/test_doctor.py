@@ -527,6 +527,9 @@ def test_patient_assignment_scope_pagination_revocation_and_reassignment(
         json={"patient_id": pat_unassigned.id, "doctor_id": pat_assigned.id},
     )
     assert bad_doctor.status_code == 400
+    failures = admin_cli.get('/api/admin/audit-logs', params={'action': 'assignment.create_failed'}).json()['items']
+    assert len(failures) == 3
+    assert all(e['outcome'] == 'FAILURE' and e['actor_role'] == 'ADMIN' and e['metadata'].get('code') for e in failures)
 
     # Reassign pat_assigned from Doctor A -> Doctor B: Doctor A immediately loses access,
     # Doctor B gains access
@@ -549,6 +552,10 @@ def test_patient_assignment_scope_pagination_revocation_and_reassignment(
     assert revoked.status_code == 200
     assert revoked.json()["status"] == "REVOKED"
     assert doc_b_cli.get(f"/api/doctor/patients/{pat_assigned.id}").status_code == 404
+    events = admin_cli.get("/api/admin/audit-logs", params={"resource_type": "assignment"}).json()["items"]
+    assert any(e["action"] == "assignment.reassigned" and e["resource_id"] == assignment_id and e["metadata"]["replacement_id"] == new_assignment_id for e in events)
+    assert any(e["action"] == "assignment.revoked" and e["resource_id"] == new_assignment_id for e in events)
+    assert all(e["outcome"] == "SUCCESS" and e["actor_role"] == "ADMIN" and e["timestamp"] for e in events)
 
 
 # ---------------------------------------------------------------------------
@@ -945,6 +952,14 @@ def test_appointment_confirmation_conflicts_transitions_reschedule_and_isolation
     assert pat_appt1["status"] == "COMPLETED"
     assert pat_appt2["status"] == "CANCELLED"
     assert "Consolidated" in (pat_appt2["status_note"] or "")
+    events = ctx["admin_cli"].get('/api/admin/audit-logs', params={'resource_type': 'appointment'}).json()['items']
+    assert any(e['action'] == 'appointment.status_changed' and e['resource_id'] == appt1_id and e['metadata']['after'] == 'CONFIRMED' for e in events)
+    assert any(e['action'] == 'appointment.status_changed' and e['resource_id'] == appt2_id and e['metadata']['after'] == 'CANCELLED' for e in events)
+    assert any(e['action'] == 'appointment.rescheduled' and e['resource_id'] == appt2_id for e in events)
+    assert 'Consolidated' not in str(events)
+    assert any(e['action'] == 'appointment.status_change_failed' and e['outcome'] == 'FAILURE' for e in events)
+    assert any(e['action'] == 'appointment.reschedule_failed' and e['outcome'] == 'FAILURE' for e in events)
+    assert all(e['actor_id'] and e['actor_role'] == 'DOCTOR' and e['timestamp'] for e in events)
 
 
 # ---------------------------------------------------------------------------
@@ -1039,6 +1054,14 @@ def test_referrals_follow_ups_notifications_and_overview_workflows(
     assert acc_ref.status_code == 200
     assert acc_ref.json()["status"] == "ACCEPTED"
     assert len(acc_ref.json()["history"]) == 2
+    events = ctx['admin_cli'].get('/api/admin/audit-logs', params={'resource_type': 'referral'}).json()['items']
+    assert any(e['action'] == 'referral.created' and e['resource_id'] == ref_id for e in events)
+    assert any(e['action'] == 'referral.status_changed' and e['resource_id'] == ref_id and e['metadata']['before'] == 'PENDING' and e['metadata']['after'] == 'ACCEPTED' for e in events)
+    assert 'outpatient scheduling' not in str(events)
+    assert any(e['action'] == 'referral.status_change_failed' and e['outcome'] == 'FAILURE' for e in events)
+    rejected_create = ctx['admin_cli'].get('/api/admin/audit-logs', params={'action': 'referral.create_failed'}).json()['items']
+    assert len(rejected_create) == 1 and rejected_create[0]['outcome'] == 'FAILURE'
+    assert all(e['actor_id'] and e['actor_role'] == 'DOCTOR' and e['timestamp'] for e in events + rejected_create)
 
     # Follow-up creation linked to referral; reject unassigned patient & past date
     future_due = datetime.now(timezone.utc) + timedelta(days=10)
@@ -1330,3 +1353,230 @@ def test_pagination_cross_patient_link_guard_and_logout_invalidation(
     assert doc_a_cli.get("/api/doctor/overview").status_code == 401
     assert doc_a_cli.get(f"/api/doctor/reports/{rep_id}/download").status_code == 401
 
+
+
+def test_admin_audit_is_transactional_and_read_only(db_factory, make_client):
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    admin = ctx['admin_cli']
+    doctor = ctx['doc_b']
+    patient = ctx['pat_assigned_cli']
+    assert patient.get('/api/admin/audit-logs').status_code == 403
+    changed = admin.patch(f'/api/admin/users/{doctor.id}', headers=_csrf(admin), json={'is_verified': True})
+    assert changed.status_code == 200
+    response = admin.get('/api/admin/audit-logs', params={'action': 'user.updated', 'actor_role': 'ADMIN', 'resource_type': 'user', 'limit': 1})
+    assert response.status_code == 200, response.text
+    assert response.json()['total'] == 1
+    event = response.json()['items'][0]
+    assert event['resource_id'] == doctor.id
+    assert event['metadata']['after']['is_verified'] is True
+    assert 'password' not in response.text.lower()
+    assert admin.get('/api/admin/audit-logs', params={'action': 'not-a-match'}).json()['total'] == 0
+    assert admin.get('/api/admin/audit-logs', params={'offset': 1, 'limit': 1, 'action': 'user.updated'}).json()['items'] == []
+    assert admin.delete(f"/api/admin/audit-logs/{event['id']}", headers=_csrf(admin)).status_code in (404, 405)
+    assert patient.delete(f"/api/admin/audit-logs/{event['id']}", headers=_csrf(patient)).status_code in (403, 404, 405)
+
+
+def test_audit_failure_prevents_account_change(db_factory, make_client, monkeypatch):
+    from app.services import auth_service
+
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    doctor = ctx['doc_b']
+    admin = ctx['admin_cli']
+
+    def fail_audit(*args, **kwargs):
+        raise RuntimeError('audit unavailable')
+
+    monkeypatch.setattr(auth_service, 'record_audit', fail_audit)
+    with pytest.raises(RuntimeError):
+        admin.patch(f'/api/admin/users/{doctor.id}', headers=_csrf(admin), json={'is_verified': True})
+    with db_factory() as db:
+        assert db.get(User, doctor.id).is_verified is False
+
+
+def test_report_analysis_consent_mock_and_assignment_access(db_factory, make_client, doctor_test_settings, monkeypatch):
+    from app.cli.seed_demo import synthetic_pdf
+    from app.api.routes import analysis as analysis_routes
+
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    patient = ctx['pat_assigned_cli']
+    doctor = ctx['doc_a_cli']
+    other_doctor = ctx['doc_b_cli']
+    other_patient = ctx['pat_unassigned_cli']
+    upload = patient.post('/api/patient/reports', files={'file': ('sample.pdf', synthetic_pdf(), 'application/pdf')}, headers=_csrf(patient))
+    assert upload.status_code == 201, upload.text
+    report_id = upload.json()['id']
+    url = f'/api/patient/reports/{report_id}/analyses'
+    assert patient.post(url, headers=_csrf(patient), json={'mode':'EXTERNAL', 'external_consent':False}).status_code == 400
+    assert other_patient.get(url).status_code == 404
+    assert other_doctor.get(f'/api/doctor/reports/{report_id}/analyses').status_code == 404
+    assert doctor.get(f'/api/doctor/reports/{report_id}/analyses').json()['items'] == []
+    mock = patient.post(url, headers=_csrf(patient), json={'mode':'SIMULATED'})
+    assert mock.status_code == 201
+    assert mock.json()['provider'] == 'MOCK'
+    assert mock.json()['processing_mode'] == 'SIMULATED'
+    assert mock.json()['result']['observations'] == []
+    assert 'unavailable in demo mode' in mock.json()['result']['summary']
+    assert doctor.get(f'/api/doctor/reports/{report_id}/analyses').json()['items'][0]['id'] == mock.json()['id']
+    doctor_test_settings.GEMINI_API_KEY = ''
+    fallback = patient.post(url, headers=_csrf(patient), json={'mode':'EXTERNAL', 'external_consent':True})
+    assert fallback.json()['provider'] == 'MOCK'
+    doctor_test_settings.GEMINI_API_KEY = 'not-a-real-key'
+    def unavailable(*args, **kwargs):
+        raise RuntimeError('secret provider error')
+    monkeypatch.setattr(analysis_routes, 'gemini_analysis', unavailable)
+    fallback = patient.post(url, headers=_csrf(patient), json={'mode':'EXTERNAL', 'external_consent':True})
+    assert fallback.json()['provider'] == 'MOCK'
+    assert 'secret provider error' not in fallback.text
+    assert len(patient.get(url).json()['items']) == 3
+
+
+def test_report_analysis_extraction_and_unavailable_ocr(tmp_path):
+    from app.ai.report_analysis import ExtractionError, extract_text
+    from app.cli.seed_demo import synthetic_pdf
+    pdf = tmp_path / 'report.pdf'
+    pdf.write_bytes(synthetic_pdf())
+    assert 'SYNTHETIC DEMONSTRATION ONLY' in extract_text(pdf, 'PDF')
+    with pytest.raises(ExtractionError, match='unavailable'):
+        extract_text(tmp_path / 'image.png', 'PNG')
+    pdf.write_bytes(b'%PDF-1.4 invalid')
+    with pytest.raises(ExtractionError):
+        extract_text(pdf, 'PDF')
+
+
+def test_gemini_validates_and_filters_unverified_observations(doctor_test_settings, monkeypatch):
+    import json
+    from types import SimpleNamespace
+    from app.ai import report_analysis
+
+    doctor_test_settings.GEMINI_API_KEY = 'not-a-real-key'
+    payload = {'report_type': 'synthetic', 'summary': 'For review only.', 'observations': [
+        {'test_name': 'Example', 'value': '12', 'unit': 'mg', 'reference_range': None, 'reported_flag': None, 'source_quote': 'Example 12 mg'},
+        {'test_name': 'Invented', 'value': '90', 'unit': None, 'reference_range': None, 'reported_flag': None, 'source_quote': 'Invented 90'}],
+        'missing_information': [], 'questions': [], 'limitations': []}
+    class Client:
+        def __init__(self, **kwargs):
+            self.models = self
+        def generate_content(self, **kwargs):
+            return SimpleNamespace(text=json.dumps(payload))
+        def close(self):
+            pass
+    monkeypatch.setattr(report_analysis.genai, 'Client', Client)
+    result = report_analysis.gemini_analysis('Example 12 mg', doctor_test_settings)
+    assert len(result['observations']) == 1
+    assert result['observations'][0]['value'] == '12'
+    assert any('omitted' in item for item in result['limitations'])
+    payload['observations'] = 'invalid'
+    with pytest.raises(Exception):
+        report_analysis.gemini_analysis('Example 12 mg', doctor_test_settings)
+
+
+def test_operational_priority_lifecycle_and_audit(db_factory, make_client):
+    from datetime import datetime, timedelta, timezone
+    from app.models.follow_up import FollowUp
+    from app.models.medical_report import MedicalReport
+
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    doctor, other = ctx['doc_a_cli'], ctx['doc_b_cli']
+    patient_id = ctx['pat_assigned'].id
+    base = f'/api/doctor/patients/{patient_id}/priority'
+    assert other.post(base + '/recalculate', headers=_csrf(other)).status_code == 404
+    assert other.post(base + '/override', headers=_csrf(other), json={'category': 'LOW', 'reason': 'Synthetic secret reason'}).status_code == 404
+    rejected = ctx['admin_cli'].get('/api/admin/audit-logs', params={'action': 'priority.', 'resource_type': 'patient'}).json()['items']
+    assert {e['action'] for e in rejected} == {'priority.recalculate_failed', 'priority.override_failed'}
+    assert all(e['outcome'] == 'FAILURE' and e['actor_role'] == 'DOCTOR' for e in rejected)
+    assert 'Synthetic secret reason' not in str(rejected)
+    low = doctor.post(base + '/recalculate', headers=_csrf(doctor)).json()
+    assert low['category'] == 'LOW' and 'not a diagnosis' in low['disclaimer']
+    assert doctor.post(base + '/recalculate', headers=_csrf(doctor)).json()['id'] == low['id']
+    with db_factory() as db:
+        report = MedicalReport(patient_id=patient_id, original_filename='synthetic.pdf', stored_filename='f'*32+'.pdf', file_type='PDF', file_size=10, review_status='PENDING_REVIEW')
+        db.add(report); db.commit(); rid = report.id
+    moderate = doctor.post(base + '/recalculate', headers=_csrf(doctor)).json()
+    assert moderate['category'] == 'MODERATE'
+    with db_factory() as db:
+        db.get(MedicalReport, rid).review_status = 'NEEDS_FOLLOW_UP'; db.commit()
+    high = doctor.post(base + '/recalculate', headers=_csrf(doctor)).json()
+    assert high['category'] == 'HIGH'
+    with db_factory() as db:
+        db.add(FollowUp(patient_id=patient_id, created_by_doctor_id=ctx['doc_a'].id, scheduled_at=datetime.now(timezone.utc)-timedelta(days=1), follow_up_type='Synthetic follow-up', status='PENDING')); db.commit()
+    urgent = doctor.post(base + '/recalculate', headers=_csrf(doctor)).json()
+    assert urgent['category'] == 'URGENT_REVIEW'
+    assert len(urgent['reasons']) == 2
+    assert doctor.post(base + '/override', headers=_csrf(doctor), json={'category':'LOW','reason':'x'}).status_code == 422
+    result = doctor.post(base + '/override', headers=_csrf(doctor), json={'category':'MODERATE','reason':'Synthetic coordination decision'})
+    assert result.status_code == 200 and result.json()['review_status'] == 'OVERRIDDEN'
+    assert doctor.post(base + '/recalculate', headers=_csrf(doctor)).json()['id'] == result.json()['id']
+    assert len(doctor.get(base + '/history').json()['items']) == 5
+    admin = ctx['admin_cli']
+    assert admin.get('/api/admin/priority').json()['counts']['MODERATE'] == 1
+    assert admin.get('/api/admin/audit-logs?action=priority.overridden').json()['total'] == 1
+    assert admin.get('/api/admin/audit-logs?action=priority.recalculated').json()['total'] == 6
+    assert ctx['pat_assigned_cli'].get('/api/patient/priority').json()['available'] is True
+
+
+def test_rejected_admin_mutations_are_audited_without_request_contents(db_factory, make_client):
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    admin = ctx['admin_cli']
+    admin_id = admin.get('/api/auth/me').json()['id']
+    rejected = admin.patch(f'/api/admin/users/{admin_id}', headers=_csrf(admin), json={'is_active': False})
+    assert rejected.status_code == 400
+    rejected_assignment = admin.patch('/api/admin/assignments/not-found', headers=_csrf(admin), json={'status': 'REVOKED', 'notes': 'sensitive synthetic note'})
+    assert rejected_assignment.status_code == 404
+    events = admin.get('/api/admin/audit-logs', params={'action': '_failed'}).json()['items']
+    assert {e['action'] for e in events} == {'user.update_failed', 'assignment.update_failed'}
+    assert all(e['outcome'] == 'FAILURE' and e['actor_id'] == admin_id and e['actor_role'] == 'ADMIN' for e in events)
+    assert 'sensitive synthetic note' not in str(events)
+    assert ctx['pat_assigned_cli'].get('/api/admin/audit-logs').status_code == 403
+
+
+def test_replace_existing_assignment_audits_each_changed_record(db_factory, make_client):
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    admin, patient, doctor = ctx['admin_cli'], ctx['pat_assigned'], ctx['doc_b']
+    old_id = ctx['assignment']['id']
+    # The helper's second doctor starts unverified; approve it through the real endpoint.
+    assert admin.patch(f'/api/admin/users/{doctor.id}', headers=_csrf(admin), json={'is_verified': True}).status_code == 200
+    response = admin.post('/api/admin/assignments', headers=_csrf(admin), json={'patient_id': patient.id, 'doctor_id': doctor.id, 'replace_existing_active': True})
+    assert response.status_code == 201
+    new_id = response.json()['id']
+    items = admin.get('/api/admin/audit-logs', params={'resource_type': 'assignment'}).json()['items']
+    assert any(e['action'] == 'assignment.created' and e['resource_id'] == new_id and e['metadata']['replace_existing'] for e in items)
+    assert any(e['action'] == 'assignment.reassigned' and e['resource_id'] == old_id and e['metadata']['replacement_id'] == new_id for e in items)
+    assert all(e['outcome'] == 'SUCCESS' and e['actor_role'] == 'ADMIN' and e['actor_id'] and e['timestamp'] for e in items)
+
+
+def test_admin_account_state_changes_and_provisioning_audit(db_factory, make_client):
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    admin, doctor, patient = ctx['admin_cli'], ctx['doc_b'], ctx['pat_assigned']
+    for user_id, change in [(doctor.id, {'is_verified': True}), (doctor.id, {'is_active': False}), (doctor.id, {'is_active': True}), (patient.id, {'is_active': False}), (patient.id, {'is_active': True})]:
+        assert admin.patch(f'/api/admin/users/{user_id}', headers=_csrf(admin), json=change).status_code == 200
+    payload = {'full_name': 'Synthetic Doctor', 'email': 'audit-doctor@example.org', 'password': 'SyntheticOnly!12345', 'role': 'DOCTOR'}
+    created = admin.post('/api/admin/users', headers=_csrf(admin), json=payload)
+    assert created.status_code == 201
+    assert admin.post('/api/admin/users', headers=_csrf(admin), json=payload).status_code == 409
+    events = admin.get('/api/admin/audit-logs', params={'resource_type': 'user'}).json()['items']
+    changes = [e for e in events if e['action'] == 'user.updated']
+    assert len(changes) == 5
+    for user_id, field, new_value in [(doctor.id, 'is_verified', True), (doctor.id, 'is_active', False), (doctor.id, 'is_active', True), (patient.id, 'is_active', False), (patient.id, 'is_active', True)]:
+        assert any(e['resource_id'] == user_id and e['metadata']['before'][field] != new_value and e['metadata']['after'][field] == new_value for e in changes)
+    assert any(e['action'] == 'user.created' and e['resource_id'] == created.json()['id'] for e in events)
+    assert any(e['action'] == 'user.create_failed' and e['outcome'] == 'FAILURE' for e in events)
+    assert all(e['actor_role'] == 'ADMIN' and e['actor_id'] and e['timestamp'] for e in events)
+    assert payload['password'] not in str(events)
+
+
+def test_referral_creation_rolls_back_when_audit_fails(db_factory, make_client, monkeypatch):
+    from sqlalchemy import func, select
+    from app.models.referral import Referral
+    from app.services import doctor as doctor_service
+
+    ctx = _seed_accounts_and_assignment(db_factory, make_client)
+    client = ctx['doc_a_cli']
+    with db_factory() as db:
+        before = db.scalar(select(func.count()).select_from(Referral))
+    def fail_audit(*args, **kwargs):
+        raise RuntimeError('audit unavailable')
+    monkeypatch.setattr(doctor_service, 'record_audit', fail_audit)
+    with pytest.raises(RuntimeError):
+        client.post('/api/doctor/referrals', headers=_csrf(client), json={'patient_id': ctx['pat_assigned'].id, 'referred_department': 'Cardiology', 'reason': 'Synthetic coordination test'})
+    with db_factory() as db:
+        assert db.scalar(select(func.count()).select_from(Referral)) == before

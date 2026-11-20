@@ -13,3 +13,9 @@ argon2-cffi==25.1.0
 PyJWT==2.15.1
 pytest==9.2.0
 httpx==0.28.1
+google-genai==3.6.1
+pypdf==7.1.1
+rapidocr-onnxruntime==1.4.4
+opencv-python-headless==5.1.0.95
+PyMuPDF==1.28.2
+Pillow==12.3.0

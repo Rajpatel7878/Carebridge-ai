@@ -185,14 +185,58 @@ def test_alembic_baseline_migration_upgrade_and_downgrade(tmp_path: Path) -> Non
             "report_reviews",
             "clinical_reviews",
             "referral_history",
+            "audit_logs",
+            "report_analyses",
+            "priority_assessments",
         }.issubset(tables)
         with verify_engine.connect() as conn:
             version = conn.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert version == "0004_doctor_portal_models"
+        assert version == "0007_priority_assessments"
     finally:
         verify_engine.dispose()
 
     command.downgrade(alembic_cfg, "base")
     command.upgrade(alembic_cfg, "head")
+
+
+def test_backend_example_configuration_loads():
+    """The documented copyable environment file accepts blank optional fields."""
+    from pathlib import Path
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=Path(__file__).resolve().parents[1] / '.env.example')
+    assert settings.COOKIE_SECURE is None
+
+
+def test_production_configuration_fails_closed() -> None:
+    import pytest
+    base = dict(_env_file=None, ENVIRONMENT='production', SECRET_KEY='x' * 48,
+                DATABASE_URL='postgresql+psycopg://user:password@database.invalid/carebridge',
+                UPLOAD_STORAGE_DIR='/var/lib/carebridge/uploads', CORS_ORIGINS='https://carebridge.example.org')
+    assert Settings(**base).database_dialect == 'postgresql'
+    for changes in [
+        {'DATABASE_URL': ''}, {'DATABASE_URL': 'sqlite:///./unsafe.db'},
+        {'DEBUG': True}, {'UPLOAD_STORAGE_DIR': ''}, {'UPLOAD_STORAGE_DIR': 'relative'},
+        {'COOKIE_SECURE': False}, {'CORS_ORIGINS': '*'},
+        {'CORS_ORIGINS': 'http://localhost:5173'}, {'CORS_ORIGIN_REGEX': '.*'},
+        {'CORS_ORIGINS': 'https://evil.example/path'},
+    ]:
+        with pytest.raises(ValueError):
+            Settings(**(base | changes))
+    assert 'password@database.invalid' not in repr(Settings(**base))
+
+
+def test_public_liveness_and_readiness(client: TestClient) -> None:
+    assert client.get('/health').json() == {'status': 'healthy'}
+    with patch('app.main.check_database_connection', return_value=None):
+        assert client.get('/ready').json() == {'status': 'ready'}
+    with patch('app.main.check_database_connection', side_effect=OperationalError('select', {}, Exception('sensitive'))):
+        response = client.get('/ready')
+    assert response.status_code == 503
+    assert response.json() == {'status': 'unavailable'}
+
+
+def test_api_responses_are_not_cached(client: TestClient) -> None:
+    assert client.get('/api/health').headers['cache-control'] == 'no-store'

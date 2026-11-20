@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { DashboardNavbar, Sidebar } from '@/components/navigation';
 import { DoctorPortalProvider } from '@/contexts/DoctorPortalContext';
 import { PatientPortalProvider } from '@/contexts/PatientPortalContext';
@@ -44,6 +44,12 @@ function getFallbackIdentity(role: UserRole): {
 
 function DashboardShell({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const legacyAdminView =
+    role === 'admin' &&
+    !['/admin', '/admin/', '/admin/analytics', '/admin/audit-logs'].includes(
+      pathname,
+    );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const { getUnreadCount, showToast } = useDemo();
@@ -96,6 +102,17 @@ function DashboardShell({ role }: DashboardLayoutProps) {
         />
 
         <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {legacyAdminView && (
+            <div
+              role="note"
+              className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+            >
+              This page contains fictional preview data and may include
+              demo-only controls. It is not a live database report. The doctor
+              account and care assignment panels, where shown, are connected to
+              the backend.
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

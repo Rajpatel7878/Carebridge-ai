@@ -29,6 +29,7 @@ from app.core.security import (
     verify_dummy_password,
     verify_password,
 )
+from app.services.audit import record_audit
 from app.models.doctor_profile import DoctorProfile, DoctorVerificationStatus
 from app.models.refresh_token import RefreshToken
 from app.models.user import User, UserRole
@@ -474,6 +475,7 @@ def create_user_by_admin(
                     ),
                 )
             )
+        record_audit(db, actor=admin, action="user.created", resource_type="user", resource_id=user.id, metadata={"role": user.role})
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -514,6 +516,7 @@ def update_user_by_admin(
                 code="self_demotion_forbidden",
             )
 
+    before = {"role": target.role, "is_active": target.is_active, "is_verified": target.is_verified, "requested_role": target.requested_role}
     invalidate_sessions = False
 
     if payload.role is not None and payload.role.value != target.role:
@@ -558,6 +561,9 @@ def update_user_by_admin(
     if invalidate_sessions:
         revoke_all_user_sessions(db, target)
 
+    after = {"role": target.role, "is_active": target.is_active, "is_verified": target.is_verified, "requested_role": target.requested_role}
+    if before != after:
+        record_audit(db, actor=admin, action="user.updated", resource_type="user", resource_id=target.id, metadata={"before": before, "after": after})
     db.commit()
     db.refresh(target)
     logger.info(

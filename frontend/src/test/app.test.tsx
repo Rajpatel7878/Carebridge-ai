@@ -292,6 +292,11 @@ const ALL_ROUTES: RouteSpec[] = [
     asRole: 'ADMIN',
   },
   {
+    path: '/admin/audit-logs',
+    expectedHeading: /Administrative audit logs/i,
+    asRole: 'ADMIN',
+  },
+  {
     path: '/admin/settings',
     expectedHeading: /Platform Settings/i,
     asRole: 'ADMIN',

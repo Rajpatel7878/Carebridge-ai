@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps.auth import AdminUser, DoctorUser, PatientUser
 from app.database.session import get_db
+from app.core.exceptions import AppException
+from app.services.audit import record_audit
 from app.models.patient_doctor_assignment import AssignmentStatus
 from app.models.user import UserRole
 from app.schemas.auth import (
@@ -35,6 +37,18 @@ from app.services.doctor import (
 )
 
 router = APIRouter(tags=["Role Access & Administration"])
+
+
+def _record_failed_admin_action(db: Session, admin, action: str, resource_type: str, resource_id: str, exc: AppException) -> None:
+    """Persist a rejected business operation after discarding any partial mutation.
+
+    Only stable error codes are recorded, never request bodies or exception messages.
+    Validation/authentication failures before route dispatch are not covered here.
+    """
+    db.rollback()
+    record_audit(db, actor=admin, action=action, resource_type=resource_type,
+                 resource_id=resource_id[:36], outcome="FAILURE", metadata={"code": exc.code})
+    db.commit()
 
 
 @router.get(
@@ -117,7 +131,11 @@ def admin_create_user(
     db: Annotated[Session, Depends(get_db)],
 ) -> UserPublic:
     """Provision an approved user account (e.g., DOCTOR) under administrator control."""
-    created = create_user_by_admin(db, admin=admin, payload=payload)
+    try:
+        created = create_user_by_admin(db, admin=admin, payload=payload)
+    except AppException as exc:
+        _record_failed_admin_action(db, admin, "user.create_failed", "user", "", exc)
+        raise
     return UserPublic.model_validate(created)
 
 
@@ -150,7 +168,11 @@ def admin_update_user(
     db: Annotated[Session, Depends(get_db)],
 ) -> UserPublic:
     """Approve doctor requests, change user roles, or activate/deactivate accounts."""
-    updated = update_user_by_admin(db, admin=admin, user_id=user_id, payload=payload)
+    try:
+        updated = update_user_by_admin(db, admin=admin, user_id=user_id, payload=payload)
+    except AppException as exc:
+        _record_failed_admin_action(db, admin, "user.update_failed", "user", user_id, exc)
+        raise
     return UserPublic.model_validate(updated)
 
 
@@ -192,7 +214,11 @@ def admin_create_assignment(
     db: Annotated[Session, Depends(get_db)],
 ) -> AssignmentResponse:
     """Assign an active PATIENT to an active DOCTOR under admin authorization."""
-    return create_assignment_by_admin(db, admin=admin, payload=payload)
+    try:
+        return create_assignment_by_admin(db, admin=admin, payload=payload)
+    except AppException as exc:
+        _record_failed_admin_action(db, admin, "assignment.create_failed", "patient", payload.patient_id, exc)
+        raise
 
 
 @router.patch(
@@ -208,9 +234,13 @@ def admin_update_assignment(
     db: Annotated[Session, Depends(get_db)],
 ) -> AssignmentResponse:
     """Revoke an active assignment or reassign the patient to another DOCTOR."""
-    return update_assignment_by_admin(
-        db,
-        admin=admin,
-        assignment_id=assignment_id,
-        payload=payload,
-    )
+    try:
+        return update_assignment_by_admin(
+            db,
+            admin=admin,
+            assignment_id=assignment_id,
+            payload=payload,
+        )
+    except AppException as exc:
+        _record_failed_admin_action(db, admin, "assignment.update_failed", "assignment", assignment_id, exc)
+        raise

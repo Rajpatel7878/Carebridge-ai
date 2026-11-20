@@ -1150,3 +1150,26 @@ def test_logout_invalidates_patient_portal_access_immediately(
     assert patient.get("/api/patient/overview").status_code == 401
     assert patient.get("/api/patient/reports").status_code == 401
 
+
+
+def test_admin_aggregate_analytics_and_safe_export(make_client, db_factory):
+    """Only administrators can see aggregate counts; export contains no identities."""
+    _seed_user(db_factory, full_name='Synthetic Admin', email=ADMIN_EMAIL, role=UserRole.ADMIN)
+    _seed_user(db_factory, full_name='Synthetic Patient', email=PATIENT_A_EMAIL, role=UserRole.PATIENT)
+    anon = make_client()
+    assert anon.get('/api/admin/analytics').status_code == 401
+    patient = _login(make_client, PATIENT_A_EMAIL)
+    assert patient.get('/api/admin/analytics').status_code == 403
+    assert patient.get('/api/admin/analytics/export').status_code == 403
+    admin = _login(make_client, ADMIN_EMAIL)
+    result = admin.get('/api/admin/analytics?days=7')
+    assert result.status_code == 200, result.text
+    assert result.json()['totals']['patients'] == 1
+    assert sum(day['registrations'] for day in result.json()['timeline']) == 1
+    assert admin.get('/api/admin/analytics?days=42').status_code == 422
+    exported = admin.get('/api/admin/analytics/export?days=7')
+    assert exported.status_code == 200
+    assert 'text/csv' in exported.headers['content-type']
+    assert 'patients,1' in exported.text
+    assert PATIENT_A_EMAIL not in exported.text
+    assert 'Synthetic Patient' not in exported.text

@@ -6,7 +6,7 @@
 **Team:** ALPHA  
 **Competition:** Future Health Challenge  
 **Category:** Population Health  
-**Current Status:** Phase 6 — Doctor Dashboard & Doctor Workflows (Completed)
+**Current Status:** Working patient/doctor prototype with partial live administrator analytics and report analysis; master build incomplete. See [synthetic demo setup](docs/demo.md) and the [current feature report](FINAL_COMPLETION_REPORT.md) for verified status and limitations.
 
 ---
 
@@ -203,6 +203,8 @@ python3 -m venv .venv
 source .venv/bin/activate        # Windows (PowerShell): .venv\Scripts\Activate.ps1
 pip install --upgrade pip
 pip install -r requirements.txt
+# RapidOCR and headless OpenCV share files; restore the headless wheel last.
+pip install --force-reinstall --no-deps opencv-python-headless==5.1.0.95
 
 # Apply Alembic migrations (creates users & refresh_tokens tables non-destructively)
 alembic upgrade head
@@ -474,7 +476,7 @@ docker compose down
 - [x] **Phase 4 — Landing Page & Public Experience:** Production-grade public landing experience with refined CareBridge AI brand mark and Open Graph metadata, sticky section-aware navbar, interactive 6-stage connected care ecosystem hero, Problem, Solution, How It Works, 10 status-transparent Key Features, Patient/Doctor/Admin role experience pathways wired to live auth, Population Health Impact, live English & Hindi (`i18n`) language switching, truthful Privacy/Security and medical disclaimer section, About Team ALPHA & Contact sections, comprehensive footer with Privacy Policy (`/privacy`) and Terms of Service (`/terms`) placeholder pages, reduced-motion accessibility, and full light/dark mode compatibility.
 - [x] **Phase 5 — Patient Dashboard & Patient Experience:** Complete backend- and database-connected Patient Portal across all 9 `/patient/*` routes (`PatientProfile`, `MedicalReport`, read-only `RiskAssessment`, `Appointment`, `Referral`, `FollowUp`, and `Notification` models + Alembic migration `0003_patient_portal_models`), strict `PATIENT` RBAC & cross-patient ownership isolation, magic-byte-verified private PDF/PNG/JPG report storage & authorized download, live overview metrics and 6-stage Health Journey timeline, `PENDING` appointment requests, read-only referral & risk tracking with clinical disclaimers, follow-up completion workflow, live in-app notifications, bilingual/theme settings, and automated backend + frontend test suites.
 - [x] **Phase 6 — Doctor Dashboard & Doctor Workflows:** Complete backend- and database-connected Doctor Portal across all 12 `/doctor/*` routes (`DoctorProfile`, `PatientDoctorAssignment`, `ReportReview`, `ClinicalReview`, and `ReferralHistory` models + Alembic migration `0004_doctor_portal_models`), admin-managed care assignments (`/api/admin/assignments*` + Admin `CareAssignmentsPanel`), strict `DOCTOR` RBAC & active-assignment anti-IDOR scoping, authorized private report downloads and immutable clinical review histories, non-diagnostic risk review workflows, appointment confirmation/rejection/rescheduling/completion with ±30-minute conflict detection, referral generation & audited status transitions, follow-up plan creation/completion & deduplicated overdue alerts, privacy-safe cross-portal notifications, bilingual/theme settings, and 141 passing automated backend (60) + frontend (81) tests.
-- [ ] **Upcoming Phases:** AI-assisted medical report analysis & summarization (Gemini integration), explainable automated clinical risk triage, external notification channels, and live administrator population-health analytics.
+- [ ] **Upcoming Phases:** AI-assisted medical report analysis & summarization (Gemini integration), explainable automated clinical risk triage, external notification channels, and remaining live administrator population-health views.
 
 ---
 

@@ -6,6 +6,9 @@ import logging
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+from app.database.session import check_database_connection
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -66,16 +69,21 @@ def create_app() -> FastAPI:
         response.headers.setdefault(
             "Referrer-Policy", "strict-origin-when-cross-origin"
         )
-        path = request.url.path
-        protected_prefixes = (
-            f"{settings.API_PREFIX}/auth",
-            f"{settings.API_PREFIX}/admin",
-            f"{settings.API_PREFIX}/patient",
-            f"{settings.API_PREFIX}/doctor",
-        )
-        if path.startswith(protected_prefixes):
+        if request.url.path.startswith(f"{settings.API_PREFIX}/"):
             response.headers.setdefault("Cache-Control", "no-store")
         return response
+
+    @application.get("/health", include_in_schema=False)
+    def liveness() -> dict[str, str]:
+        return {"status": "healthy"}
+
+    @application.get("/ready", include_in_schema=False)
+    def readiness() -> Response:
+        try:
+            check_database_connection()
+        except SQLAlchemyError:
+            return JSONResponse(status_code=503, content={"status": "unavailable"})
+        return JSONResponse(content={"status": "ready"})
 
     register_exception_handlers(application)
     application.include_router(api_router, prefix=settings.API_PREFIX)

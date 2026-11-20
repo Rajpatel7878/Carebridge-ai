@@ -855,9 +855,27 @@ describe('Doctor Portal (Phase 6) — Live Workflows & Access Control', () => {
     );
     await user.type(
       screen.getByLabelText(/Target Follow-up Date & Time/i),
-      '2027-04-12T10:00',
+      '2099-04-12T10:00',
     );
     const modal = screen.getByRole('dialog');
+    await user.click(
+      within(modal).getByRole('button', { name: /Schedule Follow-up/i }),
+    );
+    expect(
+      screen.getByText(/at least 5 minutes and no more than 365 days/i),
+    ).toBeInTheDocument();
+    expect(createSpy).not.toHaveBeenCalled();
+    await user.clear(screen.getByLabelText(/Target Follow-up Date & Time/i));
+    const validFollowUp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const localFollowUp = new Date(
+      validFollowUp.getTime() - validFollowUp.getTimezoneOffset() * 60_000,
+    )
+      .toISOString()
+      .slice(0, 16);
+    await user.type(
+      screen.getByLabelText(/Target Follow-up Date & Time/i),
+      localFollowUp,
+    );
     await user.click(
       within(modal).getByRole('button', { name: /Schedule Follow-up/i }),
     );

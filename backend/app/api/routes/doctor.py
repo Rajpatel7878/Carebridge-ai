@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps.auth import DoctorUser
 from app.core.config import Settings, get_settings
+from app.core.exceptions import AppException
+from app.services.audit import record_audit
 from app.database.session import get_db
 from app.models.appointment import AppointmentStatus
 from app.models.follow_up import FollowUpStatus
@@ -399,12 +401,18 @@ def patch_appointment_status(
     doctor: DoctorUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> DoctorAppointmentItem:
-    return update_doctor_appointment_status(
-        db,
-        doctor=doctor,
-        appointment_id=appointment_id,
-        payload=payload,
-    )
+    try:
+        return update_doctor_appointment_status(
+            db,
+            doctor=doctor,
+            appointment_id=appointment_id,
+            payload=payload,
+        )
+    except AppException as exc:
+        db.rollback()
+        record_audit(db, actor=doctor, action="appointment.status_change_failed", resource_type="appointment", resource_id=appointment_id[:36], outcome="FAILURE", metadata={"code": exc.code})
+        db.commit()
+        raise
 
 
 @router.patch(
@@ -419,17 +427,24 @@ def patch_appointment_reschedule(
     doctor: DoctorUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> DoctorAppointmentItem:
-    return reschedule_doctor_appointment(
-        db,
-        doctor=doctor,
-        appointment_id=appointment_id,
-        payload=payload,
-    )
+    try:
+        return reschedule_doctor_appointment(
+            db,
+            doctor=doctor,
+            appointment_id=appointment_id,
+            payload=payload,
+        )
+    except AppException as exc:
+        db.rollback()
+        record_audit(db, actor=doctor, action="appointment.reschedule_failed", resource_type="appointment", resource_id=appointment_id[:36], outcome="FAILURE", metadata={"code": exc.code})
+        db.commit()
+        raise
 
 
 # ---------------------------------------------------------------------------
 # Referral Management
 # ---------------------------------------------------------------------------
+
 
 
 @router.get(
@@ -471,7 +486,13 @@ def post_referral(
     doctor: DoctorUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> DoctorReferralItem:
-    return create_doctor_referral(db, doctor=doctor, payload=payload)
+    try:
+        return create_doctor_referral(db, doctor=doctor, payload=payload)
+    except AppException as exc:
+        db.rollback()
+        record_audit(db, actor=doctor, action="referral.create_failed", resource_type="patient", resource_id=payload.patient_id[:36], outcome="FAILURE", metadata={"code": exc.code})
+        db.commit()
+        raise
 
 
 @router.patch(
@@ -486,17 +507,24 @@ def patch_referral_status(
     doctor: DoctorUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> DoctorReferralItem:
-    return update_doctor_referral_status(
-        db,
-        doctor=doctor,
-        referral_id=referral_id,
-        payload=payload,
-    )
+    try:
+        return update_doctor_referral_status(
+            db,
+            doctor=doctor,
+            referral_id=referral_id,
+            payload=payload,
+        )
+    except AppException as exc:
+        db.rollback()
+        record_audit(db, actor=doctor, action="referral.status_change_failed", resource_type="referral", resource_id=referral_id[:36], outcome="FAILURE", metadata={"code": exc.code})
+        db.commit()
+        raise
 
 
 # ---------------------------------------------------------------------------
 # Follow-up Management
 # ---------------------------------------------------------------------------
+
 
 
 @router.get(

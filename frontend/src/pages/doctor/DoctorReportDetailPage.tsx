@@ -21,6 +21,7 @@ import {
   ErrorState,
   LoadingState,
 } from '@/components/common';
+import { ReportAnalysisPanel } from '@/components/dashboard/ReportAnalysisPanel';
 import { Select, Textarea } from '@/components/forms';
 import { PageHeader } from '@/components/navigation';
 import { useDemo } from '@/hooks/useDemo';
@@ -266,6 +267,8 @@ export function DoctorReportDetailPage() {
           </div>
         }
       />
+
+      <ReportAnalysisPanel key={report.id} role="doctor" reportId={report.id} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Report Metadata & Care Actions */}

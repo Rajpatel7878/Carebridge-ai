@@ -18,6 +18,7 @@ import {
   Modal,
   Pagination,
 } from '@/components/common';
+import { PriorityQueue } from '@/components/dashboard/PriorityQueue';
 import { Input, Select, Textarea } from '@/components/forms';
 import { PageHeader } from '@/components/navigation';
 import { useDemo } from '@/hooks/useDemo';
@@ -225,6 +226,8 @@ export function DoctorRiskReviewPage() {
           </Button>
         }
       />
+
+      <PriorityQueue />
 
       {/* Clinical Responsibility & AI Separation Notice */}
       <div className="flex items-start gap-3 rounded-xl border border-[var(--cb-primary)]/25 bg-[var(--cb-primary-soft)]/55 px-4 py-3.5 text-xs leading-relaxed text-[var(--cb-text)] sm:text-sm">

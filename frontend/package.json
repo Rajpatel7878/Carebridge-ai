@@ -43,6 +43,7 @@
     "eslint-plugin-react-refresh": "^0.5.8",
     "globals": "^17.14.0",
     "jsdom": "^31.0.1",
+    "playwright-core": "^1.55.1",
     "prettier": "^3.10.1",
     "tailwindcss": "^4.3.5",
     "typescript": "^5.9.3",

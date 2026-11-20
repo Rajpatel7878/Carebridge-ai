@@ -3,6 +3,8 @@ import { Home, LogOut, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/common/Badge';
 import { Logo } from '@/components/common/Logo';
+import { useLanguage } from '@/hooks/useLanguage';
+import { DASHBOARD_NAV_HI } from '@/i18n/dashboard-navigation';
 import { ROLE_PORTALS, type NavItemConfig } from '@/routes/navigation';
 import type { UserRole } from '@/types/domain';
 import { cn } from '@/utils/cn';
@@ -48,6 +50,7 @@ export function Sidebar({
   onLogout,
 }: SidebarProps) {
   const { pathname } = useLocation();
+  const { language } = useLanguage();
   const portal = ROLE_PORTALS[role];
 
   useEffect(() => {
@@ -89,7 +92,11 @@ export function Sidebar({
                 : 'text-[var(--cb-text-muted)] group-hover:text-[var(--cb-text)]',
             )}
           />
-          <span className="truncate">{item.label}</span>
+          <span className="truncate">
+            {language === 'hi'
+              ? (DASHBOARD_NAV_HI[item.label] ?? item.label)
+              : item.label}
+          </span>
         </span>
         {item.showUnreadBadge && unreadCount > 0 && (
           <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--cb-primary)] px-1.5 text-[11px] font-semibold text-white cb-tabular">

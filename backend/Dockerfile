@@ -17,16 +17,17 @@ RUN groupadd --system appgroup \
 # Install Python dependencies first for optimal layer caching
 COPY requirements.txt ./
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install -r requirements.txt \
+    && pip install --force-reinstall --no-deps opencv-python-headless==5.1.0.95
 
 # Copy backend source and Alembic migration files
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
 
-RUN mkdir -p /app/uploads/medical_reports \
-    && chmod 700 /app/uploads/medical_reports \
-    && chown -R appuser:appgroup /app
+RUN mkdir -p /app/uploads/medical_reports /var/lib/carebridge/uploads \
+    && chmod 700 /app/uploads/medical_reports /var/lib/carebridge/uploads \
+    && chown -R appuser:appgroup /app /var/lib/carebridge
 USER appuser
 
 EXPOSE 8000
@@ -34,4 +35,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)" || exit 1
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

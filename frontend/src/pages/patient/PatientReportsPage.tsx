@@ -25,6 +25,7 @@ import {
   LoadingState,
   Modal,
 } from '@/components/common';
+import { ReportAnalysisPanel } from '@/components/dashboard/ReportAnalysisPanel';
 import { SearchBar, Select } from '@/components/forms';
 import { PageHeader } from '@/components/navigation';
 import { useDemo } from '@/hooks/useDemo';
@@ -608,6 +609,12 @@ export function PatientReportsPage() {
                 </dd>
               </div>
             </dl>
+
+            <ReportAnalysisPanel
+              key={selectedReport.id}
+              role="patient"
+              reportId={selectedReport.id}
+            />
 
             {isLoadingDetail && (
               <p className="text-xs text-[var(--cb-text-muted)]">
