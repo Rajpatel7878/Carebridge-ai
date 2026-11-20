@@ -1,0 +1,41 @@
+# Deployment candidate: existing Nginx gateway + FastAPI, with EXTERNAL PostgreSQL.
+# A TLS ingress must proxy to 127.0.0.1:8080. Migrations are a separate release step.
+services:
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DEBUG: 'false'
+      DATABASE_URL: ${DATABASE_URL:?Set managed PostgreSQL DATABASE_URL securely}
+      SECRET_KEY: ${SECRET_KEY:?Set a strong secret securely}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set exact HTTPS frontend origin}
+      UPLOAD_STORAGE_DIR: /var/lib/carebridge/uploads
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      COOKIE_SAMESITE: lax
+      COOKIE_SECURE: 'true'
+    volumes:
+      - report_uploads:/var/lib/carebridge/uploads
+    expose:
+      - '8000'
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:8080:80'
+volumes:
+  report_uploads:

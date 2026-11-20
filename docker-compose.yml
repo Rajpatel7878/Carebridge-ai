@@ -32,6 +32,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: carebridge-backend
+    # Development convenience only; production migrations are a separate release step.
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     restart: unless-stopped
     depends_on:
       postgres:

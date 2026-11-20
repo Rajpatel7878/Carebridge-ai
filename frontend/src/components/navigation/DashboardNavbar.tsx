@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Dropdown, type DropdownMenuItem } from '@/components/common/Dropdown';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { ThemeToggle } from '@/components/common/ThemeToggle';
 import { useDemo } from '@/hooks/useDemo';
 import { useDoctorPortal } from '@/hooks/useDoctorPortal';
@@ -225,6 +226,7 @@ export function DashboardNavbar({
           </span>
         )}
 
+        <LanguageSwitcher />
         <ThemeToggle />
 
         <Dropdown

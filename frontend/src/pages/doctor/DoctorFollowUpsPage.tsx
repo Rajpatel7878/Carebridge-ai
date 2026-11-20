@@ -251,9 +251,14 @@ export function DoctorFollowUpsPage() {
       return;
     }
     const parsed = new Date(scheduledAt);
-    if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= Date.now()) {
+    const leadTime = parsed.getTime() - Date.now();
+    if (
+      Number.isNaN(leadTime) ||
+      leadTime < 5 * 60_000 ||
+      leadTime > 365 * 24 * 60 * 60_000
+    ) {
       setCreateError(
-        'Follow-up date and time must be scheduled in the future.',
+        'Follow-up date and time must be at least 5 minutes and no more than 365 days from now.',
       );
       return;
     }
@@ -622,7 +627,7 @@ export function DoctorFollowUpsPage() {
             <Input
               label="Follow-up Purpose"
               placeholder="e.g., Repeat fasting glucose & blood pressure check"
-              maxLength={120}
+              maxLength={100}
               value={followUpType}
               onChange={(event) => setFollowUpType(event.target.value)}
             />
@@ -664,7 +669,7 @@ export function DoctorFollowUpsPage() {
               label="Care Instructions / Notes (Optional)"
               placeholder="Concise instructions visible on the patient's follow-up plan..."
               rows={3}
-              maxLength={1000}
+              maxLength={400}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               helperText="Delivered inside the CareBridge AI portal only (no external SMS or email is sent)."
@@ -743,7 +748,7 @@ export function DoctorFollowUpsPage() {
             <Textarea
               label="Follow-up Notes"
               rows={3}
-              maxLength={1000}
+              maxLength={400}
               value={editNotes}
               onChange={(event) => setEditNotes(event.target.value)}
               error={editError ?? undefined}

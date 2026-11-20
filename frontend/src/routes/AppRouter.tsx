@@ -4,6 +4,7 @@ import { GuestOnlyRoute, ProtectedRoute, RoleGuard } from '@/components/auth';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
+import { AdminAuditLogsPage } from '@/pages/admin/AdminAuditLogsPage';
 import { AdminAnalyticsPage } from '@/pages/admin/AdminAnalyticsPage';
 import { AdminAppointmentsPage } from '@/pages/admin/AdminAppointmentsPage';
 import { AdminDoctorsPage } from '@/pages/admin/AdminDoctorsPage';
@@ -163,6 +164,7 @@ export function AppRouter() {
               <Route path="appointments" element={<AdminAppointmentsPage />} />
               <Route path="follow-ups" element={<AdminFollowUpsPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
+              <Route path="audit-logs" element={<AdminAuditLogsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
             </Route>
           </Route>

@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import secrets
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,6 +57,7 @@ class Settings(BaseSettings):
         env_file=(str(BACKEND_DIR / ".env"), str(ROOT_DIR / ".env")),
         env_file_encoding="utf-8",
         case_sensitive=False,
+        env_ignore_empty=True,
         extra="ignore",
     )
 
@@ -67,7 +69,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
 
     # Database (empty falls back to local SQLite for development)
-    DATABASE_URL: str = ""
+    DATABASE_URL: str = Field(default="", repr=False)
 
     # Security, JWT & Session Cookies
     SECRET_KEY: str = Field(default="", repr=False)
@@ -99,6 +101,8 @@ class Settings(BaseSettings):
 
     # AI Integration (reserved for later phases)
     GEMINI_API_KEY: str = Field(default="", repr=False)
+    GEMINI_MODEL: str = Field(default="gemini-2.5-flash", min_length=1, max_length=100)
+    GEMINI_TIMEOUT_SECONDS: int = Field(default=30, ge=5, le=120)
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
@@ -129,6 +133,31 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Configured SECRET_KEY must be at least 32 characters long."
             )
+
+        if not is_local_env:
+            if self.DEBUG:
+                raise ValueError("DEBUG must be disabled outside local development/test.")
+            if not self.DATABASE_URL.strip() or self.database_dialect != "postgresql":
+                raise ValueError("DATABASE_URL must point to PostgreSQL outside local development/test.")
+            if not self.UPLOAD_STORAGE_DIR.strip() or not Path(self.UPLOAD_STORAGE_DIR).is_absolute():
+                raise ValueError("UPLOAD_STORAGE_DIR must be an explicit absolute private persistent-storage path outside local development/test.")
+            if self.COOKIE_SECURE is False:
+                raise ValueError("COOKIE_SECURE cannot be disabled outside local development/test.")
+            if self.CORS_ORIGIN_REGEX:
+                raise ValueError("CORS_ORIGIN_REGEX is not permitted outside local development/test; list exact HTTPS origins.")
+            try:
+                origins = self.cors_origins_list
+                for origin in origins:
+                    parsed = urlsplit(origin)
+                    if (parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password
+                        or parsed.path or parsed.query or parsed.fragment or "*" in origin
+                        or parsed.hostname.lower() in {"localhost", "127.0.0.1", "::1"}):
+                        raise ValueError("Invalid origin")
+                    _ = parsed.port  # ensure a malformed port is rejected
+            except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                raise ValueError("CORS_ORIGINS must contain only exact HTTPS origins outside local development/test.") from exc
+            if not origins:
+                raise ValueError("CORS_ORIGINS must contain at least one exact HTTPS origin outside local development/test.")
 
         return self
 

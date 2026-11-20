@@ -223,6 +223,12 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     section: 'account',
   },
   {
+    label: 'Audit Logs',
+    path: '/admin/audit-logs',
+    icon: ClipboardCheck,
+    section: 'account',
+  },
+  {
     label: 'Settings',
     path: '/admin/settings',
     icon: Settings,

@@ -8,28 +8,29 @@ import { Button, ErrorState } from '@/components/common';
 import { Input, PasswordInput } from '@/components/forms';
 import { useAuth } from '@/hooks/useAuth';
 import { useDemo } from '@/hooks/useDemo';
+import { useLanguage } from '@/hooks/useLanguage';
+import { LOGIN_COPY } from '@/i18n/login';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { extractApiErrorMessage } from '@/services/api';
-import {
-  getDashboardPathForRole,
-  getRoleDisplayName,
-  isPathAllowedForRole,
-} from '@/types/auth';
+import { getDashboardPathForRole, isPathAllowedForRole } from '@/types/auth';
 
-const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, 'Email address is required.')
-    .email('Enter a valid email address.'),
-  password: z
-    .string()
-    .min(1, 'Password is required.')
-    .max(128, 'Password must not exceed 128 characters.'),
-  rememberSession: z.boolean().optional(),
-});
+const makeLoginSchema = (
+  copy: (typeof LOGIN_COPY)['en'] | (typeof LOGIN_COPY)['hi'],
+) =>
+  z.object({
+    email: z
+      .string()
+      .trim()
+      .min(1, copy.emailRequired)
+      .email(copy.emailInvalid),
+    password: z
+      .string()
+      .min(1, copy.passwordRequired)
+      .max(128, copy.passwordMax),
+    rememberSession: z.boolean().optional(),
+  });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type LoginFormValues = z.infer<ReturnType<typeof makeLoginSchema>>;
 
 interface LoginLocationState {
   from?: string;
@@ -37,7 +38,9 @@ interface LoginLocationState {
 }
 
 export function LoginPage() {
-  useDocumentTitle('Sign In');
+  const { language } = useLanguage();
+  const copy = LOGIN_COPY[language];
+  useDocumentTitle(copy.title);
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -59,7 +62,7 @@ export function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(makeLoginSchema(copy)),
     defaultValues: {
       email: prefilledEmail,
       password: '',
@@ -86,18 +89,13 @@ export function LoginPage() {
         : getDashboardPathForRole(authenticatedUser.role);
 
       showToast(
-        `Welcome back, ${authenticatedUser.full_name}`,
-        `Signed in to your ${getRoleDisplayName(authenticatedUser.role)} workspace.`,
+        `${copy.welcome}, ${authenticatedUser.full_name}`,
+        copy.signedIn,
         'success',
       );
       navigate(targetPath, { replace: true });
     } catch (error) {
-      setFormError(
-        extractApiErrorMessage(
-          error,
-          'Unable to sign in with those credentials. Please try again.',
-        ),
-      );
+      setFormError(extractApiErrorMessage(error, copy.fallback));
     } finally {
       setIsSubmitting(false);
     }
@@ -107,11 +105,10 @@ export function LoginPage() {
     <div className="rounded-2xl border border-[var(--cb-border)] bg-[var(--cb-surface)] p-6 shadow-[var(--cb-shadow-sm)] sm:p-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--cb-text)]">
-          Sign in to CareBridge AI
+          {copy.heading}
         </h1>
         <p className="mt-1.5 text-sm text-[var(--cb-text-muted)]">
-          Enter your registered email and password to access your authorized
-          workspace.
+          {copy.description}
         </p>
       </div>
 
@@ -124,16 +121,12 @@ export function LoginPage() {
             aria-hidden="true"
             className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cb-primary)]"
           />
-          <span>Please sign in to access your CareBridge AI workspace.</span>
+          <span>{copy.requiredSession}</span>
         </div>
       )}
 
       {formError && (
-        <ErrorState
-          title="Sign-in failed"
-          message={formError}
-          className="mt-4"
-        />
+        <ErrorState title={copy.failed} message={formError} className="mt-4" />
       )}
 
       <form
@@ -142,7 +135,7 @@ export function LoginPage() {
         className="mt-5 space-y-4"
       >
         <Input
-          label="Email Address"
+          label={copy.email}
           type="email"
           autoComplete="email"
           placeholder="name@example.org"
@@ -152,9 +145,9 @@ export function LoginPage() {
         />
 
         <PasswordInput
-          label="Password"
+          label={copy.password}
           autoComplete="current-password"
-          placeholder="Enter your password"
+          placeholder={copy.passwordPlaceholder}
           error={errors.password?.message}
           {...register('password')}
         />
@@ -166,28 +159,28 @@ export function LoginPage() {
               className="h-4 w-4 rounded border-[var(--cb-border-strong)] accent-[#1769AA]"
               {...register('rememberSession')}
             />
-            Remember session on this device
+            {copy.remember}
           </label>
           <Link
             to="/forgot-password"
             className="font-semibold text-[var(--cb-primary)] hover:underline"
           >
-            Forgot password?
+            {copy.forgot}
           </Link>
         </div>
 
         <Button type="submit" size="lg" fullWidth isLoading={isSubmitting}>
-          {isSubmitting ? 'Signing in...' : 'Sign In'}
+          {isSubmitting ? copy.signing : copy.signIn}
         </Button>
       </form>
 
       <p className="mt-6 border-t border-[var(--cb-border)] pt-5 text-center text-sm text-[var(--cb-text-muted)]">
-        New to CareBridge AI?{' '}
+        {copy.newUser}{' '}
         <Link
           to="/register"
           className="font-semibold text-[var(--cb-primary)] hover:underline"
         >
-          Create an account
+          {copy.create}
         </Link>
       </p>
     </div>

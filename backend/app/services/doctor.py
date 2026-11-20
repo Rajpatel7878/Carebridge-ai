@@ -30,6 +30,7 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
+from app.services.audit import record_audit
 from app.models.appointment import Appointment, AppointmentStatus, AppointmentType
 from app.models.clinical_review import ClinicalReview, ClinicalReviewStatus
 from app.models.doctor_profile import DoctorProfile, DoctorVerificationStatus
@@ -532,6 +533,7 @@ def create_assignment_by_admin(
         )
 
     now = datetime.now(timezone.utc)
+    prior_assignments = []
     if payload.replace_existing_active:
         prior_assignments = list(
             db.scalars(
@@ -579,6 +581,10 @@ def create_assignment_by_admin(
     )
 
     try:
+        db.flush()
+        record_audit(db, actor=admin, action="assignment.created", resource_type="assignment", resource_id=assignment.id, metadata={"replace_existing": payload.replace_existing_active})
+        for prior in prior_assignments:
+            record_audit(db, actor=admin, action="assignment.reassigned", resource_type="assignment", resource_id=prior.id, metadata={"replacement_id": assignment.id})
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -626,6 +632,7 @@ def update_assignment_by_admin(
         assignment.updated_at = now
         if payload.notes is not None:
             assignment.notes = payload.notes
+        record_audit(db, actor=admin, action="assignment.revoked", resource_type="assignment", resource_id=assignment.id)
         db.commit()
         db.refresh(assignment)
         logger.info(
@@ -696,6 +703,8 @@ def update_assignment_by_admin(
     )
 
     try:
+        db.flush()
+        record_audit(db, actor=admin, action="assignment.reassigned", resource_type="assignment", resource_id=assignment.id, metadata={"replacement_id": replacement.id})
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -2291,6 +2300,7 @@ def update_doctor_appointment_status(
         notification_type=NotificationType.APPOINTMENT,
     )
 
+    record_audit(db, actor=doctor, action="appointment.status_changed", resource_type="appointment", resource_id=appt.id, metadata={"before": current, "after": target})
     db.commit()
     db.refresh(appt)
     logger.info(
@@ -2358,6 +2368,7 @@ def reschedule_doctor_appointment(
         notification_type=NotificationType.APPOINTMENT,
     )
 
+    record_audit(db, actor=doctor, action="appointment.rescheduled", resource_type="appointment", resource_id=appt.id)
     db.commit()
     db.refresh(appt)
     logger.info(
@@ -2528,6 +2539,7 @@ def create_doctor_referral(
         notification_type=NotificationType.REFERRAL,
     )
 
+    record_audit(db, actor=doctor, action="referral.created", resource_type="referral", resource_id=referral.id)
     db.commit()
     db.refresh(referral)
     db.refresh(history_entry)
@@ -2604,6 +2616,7 @@ def update_doctor_referral_status(
         notification_type=NotificationType.REFERRAL,
     )
 
+    record_audit(db, actor=doctor, action="referral.status_changed", resource_type="referral", resource_id=referral.id, metadata={"before": previous, "after": target})
     db.commit()
     db.refresh(referral)
     history = list(

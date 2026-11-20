@@ -174,6 +174,9 @@ def test_production_settings_enforce_strong_secret_and_secure_cookies() -> None:
         _env_file=None,
         ENVIRONMENT="production",
         SECRET_KEY=TEST_SECRET,
+        DATABASE_URL="postgresql+psycopg://user:password@database.invalid/carebridge",
+        UPLOAD_STORAGE_DIR="/var/lib/carebridge/uploads",
+        CORS_ORIGINS="https://carebridge.example.org",
     )
     assert prod.is_production is True
     assert prod.resolved_cookie_secure is True
@@ -564,7 +567,7 @@ def test_refresh_token_rotation_csrf_and_replay_detection(
     assert auth_client.get("/api/auth/me").status_code == 200
 
     # Replaying the already-rotated refresh token must fail AND revoke the family!
-    auth_client.cookies.set("cb_refresh_token", original_refresh, path="/api/auth")
+    auth_client.cookies.set("cb_refresh_token", original_refresh, domain="testserver.local", path="/api/auth")
     replay = auth_client.post(
         "/api/auth/refresh",
         headers={"X-CSRF-Token": rotated_csrf},
@@ -579,8 +582,8 @@ def test_refresh_token_rotation_csrf_and_replay_detection(
 
     # The legitimately rotated token in that same family (e.g. held on another tab)
     # is now also revoked by family replay protection.
-    auth_client.cookies.set("cb_refresh_token", rotated_refresh, path="/api/auth")
-    auth_client.cookies.set("cb_csrf_token", rotated_csrf, path="/")
+    auth_client.cookies.set("cb_refresh_token", rotated_refresh, domain="testserver.local", path="/api/auth")
+    auth_client.cookies.set("cb_csrf_token", rotated_csrf, domain="testserver.local", path="/")
     post_compromise = auth_client.post(
         "/api/auth/refresh",
         headers={"X-CSRF-Token": rotated_csrf},
@@ -845,3 +848,24 @@ def test_admin_cli_provisioning_hashes_password_prevents_duplicates_and_hides_se
                 password=STRONG_PASS,
                 allow_additional=True,
             )
+
+
+def test_cross_site_preview_session_cookies_are_secure_and_clearable() -> None:
+    from starlette.responses import Response
+    from app.core.security import clear_auth_cookies, set_auth_cookies
+
+    settings = Settings(_env_file=None, ENVIRONMENT="test", SECRET_KEY=TEST_SECRET, COOKIE_SAMESITE="none")
+    response = Response()
+    set_auth_cookies(response, access_token="synthetic-access", access_max_age=60,
+                     refresh_token="synthetic-refresh", refresh_max_age=120,
+                     csrf_token="synthetic-csrf", settings=settings)
+    headers = response.headers.getlist("set-cookie")
+    assert len(headers) == 3
+    assert all("samesite=none" in h.lower() and "secure" in h.lower() for h in headers)
+    assert all("httponly" in h.lower() for h in headers[:2])
+    assert "httponly" not in headers[2].lower()
+    assert f"Path={settings.refresh_cookie_path}" in headers[1]
+    cleared = Response()
+    clear_auth_cookies(cleared, settings=settings)
+    assert len(cleared.headers.getlist("set-cookie")) == 3
+    assert all("samesite=none" in h.lower() and "secure" in h.lower() and "max-age=0" in h.lower() for h in cleared.headers.getlist("set-cookie"))
